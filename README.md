@@ -7,6 +7,8 @@ Python und SQL direkt im Browser ausprobieren. Öffentlich, ohne Anmeldung, ohne
 
 Alles läuft lokal im Browser. Code und Daten verlassen das Gerät nicht.
 
+Live: https://sandbox.lernknoten.ch (läuft auf HP-Winkel, siehe Deployment unten).
+
 ## Aufbau
 
 * `index.html`: die ganze Seite (HTML, CSS und JavaScript in einer Datei, kein Build nötig). Pyodide und sql.js werden mit fester Version von cdn.jsdelivr.net geladen (siehe oben im Script).
