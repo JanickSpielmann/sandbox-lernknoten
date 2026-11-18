@@ -1,0 +1,4 @@
+# Auf Windows nie CRLF in Dateien, die auf dem Linux Server laufen
+*.sh text eol=lf
+nginx.conf text eol=lf
+docker-compose.yml text eol=lf
