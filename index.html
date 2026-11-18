@@ -171,8 +171,8 @@ self.onmessage=async function(ev){
   var m=ev.data;
   if(m.type==='init'){
     try{
-      importScripts(m.base+'pyodide.js');
-      P=await loadPyodide({indexURL:m.base});
+      var mod=await import(m.base+'pyodide.mjs');
+      P=await mod.loadPyodide({indexURL:m.base});
       if(m.sab){ctrl=new Int32Array(m.sab,0,4);buf=new Uint8Array(m.sab,16,65536);intr=new Uint8Array(m.sab,65552,1);P.setInterruptBuffer(intr);}
       P.globals.set('_post',function(k,s){postMessage({type:k,text:s});});
       P.globals.set('_ask',ask);
@@ -572,7 +572,7 @@ function pyStartWorker() {
     py.ctrl = new Int32Array(py.sab, 0, 4); py.buf = new Uint8Array(py.sab, 16, 65536); py.intr = new Uint8Array(py.sab, 65552, 1);
   }
   var url = URL.createObjectURL(new Blob([$('#worker-src').textContent], { type: 'text/javascript' }));
-  var w = new Worker(url); py.worker = w;
+  var w = new Worker(url, { type: 'module' }); py.worker = w;
   w.onmessage = function (ev) {
     if (w !== py.worker) return;
     var m = ev.data;
