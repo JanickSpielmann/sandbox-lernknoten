@@ -173,7 +173,7 @@ self.onmessage=async function(ev){
     try{
       var mod=await import(m.base+'pyodide.mjs');
       P=await mod.loadPyodide({indexURL:m.base});
-      if(m.sab){ctrl=new Int32Array(m.sab,0,4);buf=new Uint8Array(m.sab,16,65536);intr=new Uint8Array(m.sab,65552,1);P.setInterruptBuffer(intr);}
+      if(m.sab){ctrl=new Int32Array(m.sab,0,4);buf=new Uint8Array(m.sab,16,65536);intr=new Uint8Array(m.sab,65552,1);try{P.setInterruptBuffer(intr);}catch(e){intr=null;}}
       P.globals.set('_post',function(k,s){postMessage({type:k,text:s});});
       P.globals.set('_ask',ask);
       P.runPython(m.prelude);
