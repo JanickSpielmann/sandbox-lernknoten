@@ -1,0 +1,786 @@
+<!doctype html>
+<html lang="de-CH">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sandbox · lernknoten.ch</title>
+<meta name="description" content="Python und SQL direkt im Browser ausprobieren: echtes Python (Pyodide) und eine echte SQLite Datenbank, ohne Installation und ohne Anmeldung.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23ad5f18'/%3E%3Cpath d='M9 11l6 5-6 5M17 21h7' stroke='white' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<style>
+:root{
+  --bg:#faf5f1;--card:#fff;--fg:#1d2125;--muted:#5d6670;--line:#efdfd1;--brand:#ad5f18;--brand-ink:#fff;
+  --info:#f7efe8;--good:#357a32;--bad:#ca3120;--bad-bg:#fbe9e7;--code-bg:#fcf9f6;--gelb:#c99700;
+  --t-k:#ad5f18;--t-s:#2f6f5e;--t-n:#2b6cb0;--t-c:#69727d;--t-f:#7a4fa3;--t-b:#8a5a00;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#150b03;--card:#1f1104;--fg:#e6e8eb;--muted:#9aa3ad;--line:#45260a;--brand:#d2a780;--brand-ink:#0d1117;
+  --info:#2b1806;--good:#6cc46a;--bad:#ff7a6b;--bad-bg:#3a1f1c;--code-bg:#1a0e04;--gelb:#f2b705;
+  --t-k:#d6af8c;--t-s:#8fd4b8;--t-n:#8ab4e8;--t-c:#9aa3ad;--t-f:#c3a6e8;--t-b:#e5b567;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+a{color:var(--brand)}
+.head,main,footer{max-width:1100px;margin:0 auto;padding-left:16px;padding-right:16px}
+.head{padding-top:36px}
+.kicker{display:inline-flex;align-items:center;gap:8px;font-weight:600;font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.kicker::before{content:"";width:10px;height:10px;border-radius:3px;background:var(--gelb)}
+h1{margin:10px 0 6px;font-size:clamp(28px,4.5vw,40px);line-height:1.1;font-weight:800;letter-spacing:-.02em}
+.head p{margin:0 0 18px;color:var(--muted);max-width:60ch}
+.tabs{display:flex;gap:6px;border-bottom:1px solid var(--line)}
+.tabs button{font:inherit;font-weight:600;color:var(--muted);background:none;border:0;border-bottom:3px solid transparent;padding:.55em 1.1em;cursor:pointer;margin-bottom:-1px}
+.tabs button[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--brand)}
+main{padding-top:18px;padding-bottom:30px}
+[hidden]{display:none!important}
+.card{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:16px;margin-bottom:16px}
+h2{font-size:1.05rem;margin:0 0 8px;font-weight:600}
+.toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:12px}
+.toolbar .grow{flex:1}
+.btn{background:var(--brand);color:var(--brand-ink);border:0;border-radius:6px;padding:.5em 1em;font:inherit;font-weight:600;cursor:pointer}
+.btn.sec{background:var(--card);color:var(--fg);border:1px solid var(--line)}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
+.link{background:none;border:0;color:var(--muted);font:inherit;font-size:.88rem;cursor:pointer;text-decoration:underline;padding:0}
+select{font:inherit;font-size:.92rem;color:var(--fg);background:var(--card);border:1px solid var(--line);border-radius:6px;padding:.4em .6em;max-width:100%}
+.state{color:var(--muted);font-size:.88rem}
+.hint{color:var(--muted);font-size:.85rem;margin:8px 0 0}
+button:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visible,textarea:focus-visible{outline:3px solid var(--brand);outline-offset:1px}
+/* Editor: transparentes Textfeld über der farbigen Ansicht */
+.ed{position:relative;display:grid;grid-template-columns:3.2em minmax(0,1fr);border:1px solid #8f959e;border-radius:6px;overflow:hidden;background:var(--card)}
+.ed:focus-within{outline:3px solid var(--brand);outline-offset:1px}
+.ed .gut,.ed .hl,.ed textarea{font:14px/1.55 ui-monospace,"SF Mono",Menlo,Consolas,monospace;tab-size:4;margin:0;border:0;white-space:pre;letter-spacing:normal}
+.ed .gut{position:absolute;top:0;bottom:0;left:0;width:3.2em;padding:12px 10px 12px 0;text-align:right;color:var(--muted);background:var(--bg);border-right:1px solid var(--line);overflow:hidden;user-select:none}
+.ed .pane{position:relative;min-width:0;grid-column:2}
+.ed .hl{position:absolute;inset:0;padding:12px 14px;overflow:hidden;color:var(--fg);pointer-events:none}
+.ed textarea{position:relative;display:block;width:100%;min-height:var(--h,260px);padding:12px 14px;overflow:auto;background:transparent;color:transparent;caret-color:var(--fg);resize:vertical}
+.ed textarea:focus-visible{outline:none}
+.ed textarea::selection{background:rgba(110,150,200,.35);color:transparent}
+.t-k{color:var(--t-k);font-weight:600}.t-s{color:var(--t-s)}.t-n{color:var(--t-n)}.t-c{color:var(--t-c);font-style:italic}.t-f{color:var(--t-f)}.t-b{color:var(--t-b)}
+/* Ausgabe */
+.console{margin:0;padding:12px 14px;min-height:140px;max-height:480px;overflow:auto;background:var(--code-bg);border:1px solid var(--line);border-radius:6px;font:14px/1.5 ui-monospace,"SF Mono",Menlo,Consolas,monospace;white-space:pre-wrap;word-break:break-word}
+.console .e{color:var(--bad)}
+.console .m{color:var(--muted);font-style:italic}
+.console input.live{font:inherit;color:var(--fg);background:var(--card);border:1px solid var(--brand);border-radius:4px;padding:0 4px;min-width:16ch;max-width:100%}
+textarea.small{width:100%;min-height:70px;font:14px/1.5 ui-monospace,Menlo,Consolas,monospace;color:var(--fg);background:var(--card);border:1px solid #8f959e;border-radius:6px;padding:8px 10px;resize:vertical}
+.verdict{border-radius:6px;padding:10px 14px;margin:0 0 12px;border:1px solid var(--line);background:var(--info)}
+.verdict.err{background:var(--bad-bg);border-color:var(--bad);color:var(--bad);font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.9rem;white-space:pre-wrap}
+.rs{margin-bottom:14px}.rs-cap{font-size:.82rem;color:var(--muted);margin-bottom:4px}
+.tw{overflow:auto;max-height:420px;border:1px solid var(--line);border-radius:6px}
+table{border-collapse:collapse;width:100%;font-size:.9rem}
+th,td{padding:5px 10px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+th{position:sticky;top:0;background:var(--info);font-weight:600}
+td.num{text-align:right;font-variant-numeric:tabular-nums}td.nul{color:var(--muted);font-style:italic}
+tbody tr:last-child td{border-bottom:0}
+.sqlgrid{display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:16px;align-items:start}
+@media (max-width:860px){.sqlgrid{grid-template-columns:1fr}}
+.schema details{border-bottom:1px solid var(--line);padding:6px 0}.schema details:last-child{border-bottom:0}
+.schema summary{cursor:pointer;font-weight:600}
+.schema ul{list-style:none;margin:6px 0 4px;padding:0 0 0 6px;font-size:.85rem;color:var(--muted)}
+.schema li b{color:var(--fg);font-weight:500}
+.schema .show{margin-top:2px}
+footer{padding-top:6px;padding-bottom:40px;color:var(--muted);font-size:.85rem}
+</style>
+</head>
+<body>
+<header class="head">
+  <span class="kicker">lernknoten.ch</span>
+  <h1>Sandbox</h1>
+  <p>Python und SQL direkt im Browser ausprobieren. Echtes Python und eine echte SQLite Datenbank, ohne Installation und ohne Anmeldung.</p>
+  <div class="tabs" role="tablist" aria-label="Sandbox wählen">
+    <button role="tab" id="tab-python" aria-controls="panel-python" aria-selected="true" type="button">Python</button>
+    <button role="tab" id="tab-sql" aria-controls="panel-sql" aria-selected="false" type="button">SQL</button>
+  </div>
+</header>
+
+<main>
+  <noscript><div class="card">Diese Seite braucht JavaScript.</div></noscript>
+
+  <section id="panel-python" role="tabpanel" aria-labelledby="tab-python">
+    <div class="card">
+      <div class="toolbar">
+        <button class="btn" id="py-run" type="button" disabled>Ausführen</button>
+        <button class="btn sec" id="py-stop" type="button" disabled>Stopp</button>
+        <label class="state">Beispiel <select id="py-examples"></select></label>
+        <span class="grow"></span>
+        <span class="state" id="py-state" role="status">Python wird geladen …</span>
+      </div>
+      <div id="py-editor"></div>
+      <p class="hint">Strg oder Cmd + Enter führt aus. Mit Esc und danach Tab verlässt du den Editor per Tastatur.</p>
+    </div>
+    <div class="card" id="py-stdin-card" hidden>
+      <label for="py-stdin"><b>Eingaben für input()</b> (eine pro Zeile)</label>
+      <textarea class="small" id="py-stdin" spellcheck="false" autocapitalize="off" autocomplete="off"></textarea>
+      <p class="hint">Dein Browser erlaubt hier keine Live Eingabe. Trage die Antworten für input() vorab ein.</p>
+    </div>
+    <div class="card">
+      <div class="toolbar" style="margin-bottom:8px"><h2 style="margin:0">Ausgabe</h2><span class="grow"></span><button class="link" id="py-clear" type="button">Ausgabe leeren</button></div>
+      <div class="console" id="py-out" aria-live="polite" tabindex="0"></div>
+      <p class="hint">Die Standardbibliothek ist dabei. numpy, pandas und weitere Pakete von Pyodide werden bei <code>import</code> automatisch nachgeladen. Diagramme (matplotlib) werden hier nicht angezeigt.</p>
+    </div>
+  </section>
+
+  <section id="panel-sql" role="tabpanel" aria-labelledby="tab-sql" hidden>
+    <div class="sqlgrid">
+      <div>
+        <div class="card">
+          <div class="toolbar">
+            <button class="btn" id="sq-run" type="button" disabled>Ausführen</button>
+            <label class="state">Beispiel <select id="sq-examples"></select></label>
+            <span class="grow"></span>
+            <span class="state" id="sq-state" role="status">SQLite wird geladen …</span>
+          </div>
+          <div id="sq-editor"></div>
+          <p class="hint">Strg oder Cmd + Enter führt aus. Ist Text markiert, läuft nur die Markierung. Mehrere Befehle mit Semikolon trennen.</p>
+        </div>
+        <div class="card">
+          <h2>Ergebnis</h2>
+          <div id="sq-out" aria-live="polite"><p class="hint" style="margin:0">Noch nichts ausgeführt.</p></div>
+        </div>
+      </div>
+      <aside class="card schema">
+        <h2>Datenbank</h2>
+        <div id="sq-schema"></div>
+        <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-start;margin-top:12px">
+          <button class="link" id="sq-demo" type="button">Beispieldatenbank neu laden</button>
+          <button class="link" id="sq-empty" type="button">Leere Datenbank</button>
+          <button class="link" id="sq-save" type="button">Datenbank speichern (.sqlite)</button>
+          <button class="link" id="sq-open" type="button">Datenbank öffnen</button>
+          <input type="file" id="sq-file" accept=".sqlite,.sqlite3,.db" hidden>
+        </div>
+        <p class="hint">Die Datenbank liegt nur im Arbeitsspeicher. Beim Neuladen der Seite ist sie weg, ausser du speicherst sie.</p>
+      </aside>
+    </div>
+  </section>
+</main>
+
+<footer>
+  Alles läuft in deinem Browser, dein Code und deine Daten verlassen dein Gerät nicht. Beim ersten Start lädt die Seite Python (Pyodide, etwa 12 MB) und SQLite von cdn.jsdelivr.net, danach liegen sie im Browser Cache.
+  <a href="https://github.com/JanickSpielmann/sandbox-lernknoten">Quellcode auf GitHub</a>
+</footer>
+
+<script type="text/plain" id="worker-src">
+var P=null,ctrl=null,buf=null,intr=null;
+function ask(prompt){
+  Atomics.store(ctrl,0,0);
+  postMessage({type:'input',text:String(prompt)});
+  Atomics.wait(ctrl,0,0);
+  var n=Atomics.load(ctrl,1);
+  if(n<0)return undefined;
+  return new TextDecoder().decode(buf.slice(0,n));
+}
+function msg(e){return String(e&&e.message?e.message:e);}
+self.onmessage=async function(ev){
+  var m=ev.data;
+  if(m.type==='init'){
+    try{
+      importScripts(m.base+'pyodide.js');
+      P=await loadPyodide({indexURL:m.base});
+      if(m.sab){ctrl=new Int32Array(m.sab,0,4);buf=new Uint8Array(m.sab,16,65536);intr=new Uint8Array(m.sab,65552,1);P.setInterruptBuffer(intr);}
+      P.globals.set('_post',function(k,s){postMessage({type:k,text:s});});
+      P.globals.set('_ask',ask);
+      P.runPython(m.prelude);
+      postMessage({type:'ready',text:P.runPython('".".join(map(str, __import__("sys").version_info[:3]))')});
+    }catch(e){postMessage({type:'fatal',text:msg(e)});}
+    return;
+  }
+  if(m.type==='run'){
+    try{
+      try{await P.loadPackagesFromImports(m.code,{messageCallback:function(s){postMessage({type:'status',text:String(s)});},errorCallback:function(s){postMessage({type:'status',text:String(s)});}});}catch(e){}
+      if(intr)intr[0]=0;
+      P.globals.set('_code',m.code);
+      P.globals.set('_lines',P.toPy(m.stdin||[]));
+      P.globals.set('_live',!!(m.live&&ctrl));
+      P.runPython('_run()');
+    }catch(e){
+      postMessage({type:'err',text:msg(e)+'\n'});
+      postMessage({type:'done',text:'error'});
+    }
+  }
+};
+</script>
+
+<script type="text/plain" id="py-prelude">
+import sys, time, builtins, linecache, traceback
+
+_LIMIT = 200000
+
+class _Count:
+    total = 0
+
+class _Out:
+    encoding = 'utf-8'
+    def __init__(self, kind):
+        self.kind = kind
+        self.parts = []
+        self.size = 0
+        self.t = time.monotonic()
+        self.other = None
+    def writable(self):
+        return True
+    def isatty(self):
+        return False
+    def write(self, s):
+        s = str(s)
+        if self.other is not None:
+            self.other.flush()
+        _Count.total += len(s)
+        if _Count.total > _LIMIT:
+            self.parts = []
+            raise RuntimeError('Die Ausgabe ist zu lang (mehr als 200000 Zeichen).')
+        self.parts.append(s)
+        self.size += len(s)
+        if self.size > 4096 or time.monotonic() - self.t > 0.05:
+            self.flush()
+        return len(s)
+    def flush(self):
+        if self.parts:
+            text = ''.join(self.parts)
+            self.parts = []
+            self.size = 0
+            _post(self.kind, text)
+        self.t = time.monotonic()
+
+def _make_input(out, err):
+    def _input(prompt=''):
+        out.flush()
+        err.flush()
+        prompt = str(prompt)
+        if _lines:
+            v = str(_lines.pop(0))
+            out.write(prompt + v + '\n')
+            return v
+        if _live:
+            v = _ask(prompt)
+            if v is None:
+                raise EOFError('EOF when reading a line')
+            return v
+        raise EOFError('input() verlangt mehr Eingaben, als im Feld «Eingaben» stehen.')
+    return _input
+
+def _show(e, err):
+    tb = e.__traceback__
+    while tb is not None and tb.tb_frame.f_code.co_filename != '<main>':
+        tb = tb.tb_next
+    text = ''
+    if tb is not None:
+        frames = [f for f in traceback.extract_tb(tb) if f.filename == '<main>']
+        text += 'Traceback (most recent call last):\n' + ''.join(traceback.format_list(frames))
+    text += ''.join(traceback.format_exception_only(type(e), e))
+    err.write(text)
+
+def _run():
+    code = _code
+    _Count.total = 0
+    out = _Out('out')
+    err = _Out('err')
+    out.other = err
+    err.other = out
+    b = dict(vars(builtins))
+    b['input'] = _make_input(out, err)
+    ns = {'__builtins__': b, '__name__': '__main__'}
+    linecache.cache['<main>'] = (len(code), None, code.splitlines(True), '<main>')
+    so, se = sys.stdout, sys.stderr
+    sys.stdout, sys.stderr = out, err
+    status = 'ok'
+    try:
+        exec(compile(code, '<main>', 'exec'), ns)
+    except SystemExit:
+        pass
+    except KeyboardInterrupt:
+        status = 'stopped'
+        _Count.total = 0
+        err.write('\nAbgebrochen\n')
+    except BaseException as e:
+        status = 'error'
+        _Count.total = 0
+        _show(e, err)
+    finally:
+        try:
+            out.flush()
+            err.flush()
+        finally:
+            sys.stdout, sys.stderr = so, se
+    _post('done', status)
+</script>
+
+<script>
+(function () {
+'use strict';
+var PYODIDE = 'https://cdn.jsdelivr.net/pyodide/v314.0.7/full/';
+var SQLJS = 'https://cdn.jsdelivr.net/npm/sql.js@1.16.0/dist/';
+
+function $(s) { return document.querySelector(s); }
+function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+function set(words) { var o = {}; words.split(' ').forEach(function (w) { o[w] = 1; }); return o; }
+var store = {
+  get: function (k) { try { return localStorage.getItem('lk-sandbox-' + k); } catch (e) { return null; } },
+  set: function (k, v) { try { localStorage.setItem('lk-sandbox-' + k, v); } catch (e) { } }
+};
+function loadScript(src) {
+  return new Promise(function (ok, fail) {
+    var s = document.createElement('script');
+    s.src = src; s.crossOrigin = 'anonymous'; s.onload = ok;
+    s.onerror = function () { fail(new Error('Konnte ' + src + ' nicht laden. Ist das Internet verfügbar?')); };
+    document.head.appendChild(s);
+  });
+}
+
+/* ---------- Syntaxfarben ---------- */
+var PYKW = set('False None True and as assert async await break class continue def del elif else except finally for from global if import in is lambda nonlocal not or pass raise return try while with yield match case');
+var PYBI = set('print input len range int float str bool list dict set tuple sum min max abs round sorted reversed enumerate zip map filter open isinstance type super object Exception ValueError TypeError KeyError IndexError');
+function span(cls, t) { return '<span class="t-' + cls + '">' + esc(t) + '</span>'; }
+function hlPy(src) {
+  var re = /(#[^\n]*)|("""[\s\S]*?(?:"""|$)|'''[\s\S]*?(?:'''|$)|[rRbBfFuU]{0,2}"(?:\\.|[^"\\\n])*"?|[rRbBfFuU]{0,2}'(?:\\.|[^'\\\n])*'?)|(\b\d[\d_]*(?:\.\d+)?(?:[eE][+-]?\d+)?\b)|([A-Za-z_][A-Za-z_0-9]*)/g;
+  var out = '', last = 0, m, prev = '';
+  while ((m = re.exec(src))) {
+    out += esc(src.slice(last, m.index)); last = re.lastIndex;
+    var t = m[0], cls = '';
+    if (m[1]) cls = 'c'; else if (m[2]) cls = 's'; else if (m[3]) cls = 'n';
+    else if (PYKW[t]) cls = 'k';
+    else if (prev === 'def' || prev === 'class') cls = 'f';
+    else if (PYBI[t]) cls = 'b';
+    out += cls ? span(cls, t) : esc(t);
+    if (m[4]) prev = t;
+  }
+  return out + esc(src.slice(last));
+}
+var SQLKW = set('SELECT DISTINCT FROM WHERE JOIN LEFT RIGHT INNER OUTER CROSS NATURAL FULL ON USING AND OR NOT IN EXISTS GROUP BY ORDER HAVING ASC DESC AS IS NULL LIKE GLOB BETWEEN UNION ALL INTERSECT EXCEPT LIMIT OFFSET INSERT INTO VALUES UPDATE SET DELETE CASE WHEN THEN ELSE END CREATE TABLE VIEW INDEX DROP ALTER ADD COLUMN CAST TRUE FALSE PRIMARY KEY FOREIGN REFERENCES DEFAULT UNIQUE CHECK WITH PRAGMA BEGIN COMMIT ROLLBACK');
+var SQLFN = set('COUNT MAX MIN SUM AVG ROUND ABS LENGTH UPPER LOWER SUBSTR TRIM REPLACE COALESCE IFNULL NULLIF DATE TIME DATETIME STRFTIME TOTAL GROUP_CONCAT RANDOM');
+function hlSql(sql) {
+  var re = /(--[^\n]*|\/\*[\s\S]*?(?:\*\/|$))|('(?:''|[^'])*'?|"[^"\n]*"?)|(\d+(?:\.\d+)?)|([A-Za-z_][A-Za-z_0-9]*)/g;
+  var out = '', last = 0, m;
+  while ((m = re.exec(sql))) {
+    out += esc(sql.slice(last, m.index)); last = re.lastIndex;
+    var t = m[0], up = t.toUpperCase();
+    if (m[1]) out += span('c', t);
+    else if (m[2]) out += span('s', t);
+    else if (m[3]) out += span('n', t);
+    else if (SQLFN[up] && /^\s*\(/.test(sql.slice(last))) out += span('f', t);
+    else if (SQLKW[up]) out += span('k', t);
+    else out += esc(t);
+  }
+  return out + esc(sql.slice(last));
+}
+
+/* ---------- Editor (Textfeld über farbiger Ansicht) ---------- */
+function makeEditor(host, o) {
+  host.innerHTML = '<div class="ed"><pre class="gut" aria-hidden="true">1</pre><div class="pane"><pre class="hl" aria-hidden="true"></pre>' +
+    '<textarea spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" wrap="off" aria-label="' + o.label + '"></textarea></div></div>';
+  var ed = host.firstChild, ta = ed.querySelector('textarea'), hl = ed.querySelector('.hl'), gut = ed.querySelector('.gut');
+  ed.style.setProperty('--h', (o.height || 260) + 'px');
+  if (o.tab === 2) ed.style.tabSize = 2;
+  var desc = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value');
+  var indent = o.indent || '    ';
+  function sync() { hl.scrollTop = ta.scrollTop; hl.scrollLeft = ta.scrollLeft; gut.scrollTop = ta.scrollTop; }
+  function refresh() {
+    var v = desc.get.call(ta);
+    hl.innerHTML = o.hl(v) + '\n ';
+    var n = v.split('\n').length, g = '';
+    for (var i = 1; i <= n; i++) g += i + (i < n ? '\n' : '');
+    gut.textContent = g; sync();
+  }
+  function insert(text) {
+    ta.focus();
+    if (!document.execCommand('insertText', false, text)) { ta.setRangeText(text, ta.selectionStart, ta.selectionEnd, 'end'); ta.dispatchEvent(new Event('input')); }
+  }
+  function shift(back) {
+    var v = ta.value, s = ta.selectionStart, e = ta.selectionEnd;
+    if (s === e && !back) { insert(indent); return; }
+    var ls = v.lastIndexOf('\n', s - 1) + 1, le = v.indexOf('\n', e); if (le < 0) le = v.length;
+    var re = new RegExp('^ {1,' + indent.length + '}');
+    var block = v.slice(ls, le).split('\n').map(function (l) { return back ? l.replace(re, '') : indent + l; }).join('\n');
+    ta.setSelectionRange(ls, le);
+    if (!document.execCommand('insertText', false, block)) { ta.setRangeText(block, ls, le, 'select'); ta.dispatchEvent(new Event('input')); }
+    ta.setSelectionRange(ls, ls + block.length);
+  }
+  var free = false;
+  ta.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Escape') { free = true; return; }
+    if (ev.key === 'Tab' && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {
+      if (free) { free = false; return; }
+      ev.preventDefault(); shift(ev.shiftKey); return;
+    }
+    free = false;
+    if (ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey)) { ev.preventDefault(); o.onRun(); return; }
+    if (ev.key === 'Enter' && !ev.shiftKey && !ev.altKey && !ev.isComposing) {
+      ev.preventDefault();
+      var v = ta.value, s = ta.selectionStart, line = v.slice(v.lastIndexOf('\n', s - 1) + 1, s);
+      var pad = line.match(/^[ \t]*/)[0];
+      if (o.colonIndent && /:\s*$/.test(line)) pad += indent;
+      insert('\n' + pad);
+    }
+  });
+  var timer;
+  ta.addEventListener('input', function () { refresh(); clearTimeout(timer); timer = setTimeout(function () { if (o.onSave) o.onSave(ta.value); }, 300); });
+  ta.addEventListener('scroll', sync);
+  ta.value = o.value; refresh();
+  return {
+    ta: ta,
+    get: function () { return ta.value; },
+    set: function (v) { ta.value = v; refresh(); if (o.onSave) o.onSave(v); }
+  };
+}
+
+/* ---------- Tabs ---------- */
+var tabs = { python: $('#tab-python'), sql: $('#tab-sql') };
+var panels = { python: $('#panel-python'), sql: $('#panel-sql') };
+function showTab(name, focus) {
+  if (!tabs[name]) name = 'python';
+  Object.keys(tabs).forEach(function (k) {
+    var on = k === name;
+    tabs[k].setAttribute('aria-selected', on ? 'true' : 'false'); tabs[k].tabIndex = on ? 0 : -1;
+    panels[k].hidden = !on;
+  });
+  if (focus) tabs[name].focus();
+  if (name === 'python') pyStart(); else sqlStart();
+}
+Object.keys(tabs).forEach(function (k) {
+  tabs[k].addEventListener('click', function () { history.replaceState(null, '', '#' + k); showTab(k); });
+  tabs[k].addEventListener('keydown', function (ev) {
+    if (ev.key === 'ArrowRight' || ev.key === 'ArrowLeft') { var n = k === 'python' ? 'sql' : 'python'; history.replaceState(null, '', '#' + n); showTab(n, true); }
+  });
+});
+
+/* ---------- Python ---------- */
+var PYEX = [
+  ['Hallo Welt', String.raw`# Willkommen in der Python Sandbox
+name = "Welt"
+print("Hallo", name)
+
+for i in range(1, 4):
+    print("Zeile", i)
+`],
+  ['Eingabe mit input()', String.raw`name = input("Wie heisst du? ")
+alter = int(input("Wie alt bist du? "))
+print(f"Hallo {name}, nächstes Jahr bist du {alter + 1}.")
+`],
+  ['Funktionen und Schleifen', String.raw`def ist_primzahl(n):
+    if n < 2:
+        return False
+    for teiler in range(2, int(n ** 0.5) + 1):
+        if n % teiler == 0:
+            return False
+    return True
+
+primzahlen = [n for n in range(2, 50) if ist_primzahl(n)]
+print("Primzahlen bis 50:", primzahlen)
+
+a, b = 0, 1
+folge = []
+while a < 100:
+    folge.append(a)
+    a, b = b, a + b
+print("Fibonacci:", folge)
+`],
+  ['Klassen', String.raw`class Konto:
+    def __init__(self, inhaber, stand=0):
+        self.inhaber = inhaber
+        self.stand = stand
+
+    def einzahlen(self, betrag):
+        self.stand += betrag
+
+    def abheben(self, betrag):
+        if betrag > self.stand:
+            raise ValueError("Nicht genug Guthaben")
+        self.stand -= betrag
+
+    def __str__(self):
+        return f"{self.inhaber}: {self.stand:.2f} CHF"
+
+
+konto = Konto("Anna", 100)
+konto.einzahlen(50)
+print(konto)
+try:
+    konto.abheben(500)
+except ValueError as fehler:
+    print("Fehler:", fehler)
+`],
+  ['Listen und Dictionaries', String.raw`noten = {"Anna": [5.5, 4.5, 6.0], "Ben": [4.0, 4.5], "Cem": [5.0, 5.5, 5.0, 6.0]}
+for name, liste in noten.items():
+    print(f"{name}: Durchschnitt {sum(liste) / len(liste):.2f}")
+
+quadrate = {n: n ** 2 for n in range(1, 6)}
+print(quadrate)
+`],
+  ['pandas', String.raw`import pandas as pd
+
+df = pd.DataFrame({
+    "Stadt": ["Bern", "Zürich", "Basel", "Genf"],
+    "Einwohner": [134000, 421000, 173000, 203000],
+})
+print(df)
+print()
+print(df.sort_values("Einwohner", ascending=False).head(2))
+print("Summe:", df["Einwohner"].sum())
+`],
+  ['Fehlermeldung ansehen', String.raw`def teilen(a, b):
+    return a / b
+
+print(teilen(10, 2))
+print(teilen(1, 0))
+`]
+];
+
+var py = { worker: null, ready: false, running: false, starting: false, waiting: false, sab: null, ctrl: null, buf: null, intr: null, kill: 0,
+  iso: !!(window.crossOriginIsolated && typeof SharedArrayBuffer !== 'undefined') };
+var pyOut = $('#py-out'), pyState = $('#py-state'), pyRunBtn = $('#py-run'), pyStopBtn = $('#py-stop');
+var pyEd = makeEditor($('#py-editor'), {
+  label: 'Python Code', hl: hlPy, indent: '    ', colonIndent: true, height: 260,
+  value: store.get('py') || PYEX[0][1], onRun: function () { pyRun(); }, onSave: function (v) { store.set('py', v); }
+});
+
+function pyButtons() {
+  pyRunBtn.disabled = !py.ready || py.running;
+  pyStopBtn.disabled = !py.running;
+}
+function pyAppend(text, cls) {
+  var near = pyOut.scrollHeight - pyOut.scrollTop - pyOut.clientHeight < 40;
+  var last = pyOut.lastChild;
+  if (last && last.nodeType === 1 && last.tagName === 'SPAN' && last.className === (cls || '')) last.appendChild(document.createTextNode(text));
+  else { var s = document.createElement('span'); if (cls) s.className = cls; s.textContent = text; pyOut.appendChild(s); }
+  if (pyOut.textContent.length > 400000) pyOut.firstChild && pyOut.removeChild(pyOut.firstChild);
+  if (near) pyOut.scrollTop = pyOut.scrollHeight;
+}
+function pyAsk(prompt) {
+  pyAppend(prompt, '');
+  var inp = document.createElement('input');
+  inp.className = 'live'; inp.type = 'text'; inp.setAttribute('aria-label', 'Eingabe für input()');
+  inp.autocomplete = 'off'; inp.spellcheck = false;
+  pyOut.appendChild(inp); inp.focus(); pyOut.scrollTop = pyOut.scrollHeight;
+  py.waiting = { inp: inp };
+  inp.addEventListener('keydown', function (ev) {
+    if (ev.key !== 'Enter') return;
+    ev.preventDefault();
+    var v = inp.value;
+    pyOut.removeChild(inp);
+    pyAppend(v + '\n', '');
+    pyAnswer(new TextEncoder().encode(v));
+  });
+}
+function pyAnswer(bytes) {
+  if (!py.waiting) return;
+  py.waiting = false;
+  if (bytes === null) { Atomics.store(py.ctrl, 1, -1); }
+  else { if (bytes.length > 65536) bytes = bytes.slice(0, 65536); py.buf.set(bytes, 0); Atomics.store(py.ctrl, 1, bytes.length); }
+  Atomics.store(py.ctrl, 0, 1); Atomics.notify(py.ctrl, 0);
+}
+function pyStartWorker() {
+  py.starting = true; py.ready = false; py.running = false; py.waiting = false; pyButtons();
+  pyState.textContent = 'Python wird geladen …';
+  if (py.iso) {
+    py.sab = new SharedArrayBuffer(16 + 65536 + 16);
+    py.ctrl = new Int32Array(py.sab, 0, 4); py.buf = new Uint8Array(py.sab, 16, 65536); py.intr = new Uint8Array(py.sab, 65552, 1);
+  }
+  var url = URL.createObjectURL(new Blob([$('#worker-src').textContent], { type: 'text/javascript' }));
+  var w = new Worker(url); py.worker = w;
+  w.onmessage = function (ev) {
+    if (w !== py.worker) return;
+    var m = ev.data;
+    if (m.type === 'ready') { URL.revokeObjectURL(url); py.starting = false; py.ready = true; pyState.textContent = 'Bereit (Python ' + m.text + ')'; pyButtons(); }
+    else if (m.type === 'out') pyAppend(m.text, '');
+    else if (m.type === 'err') pyAppend(m.text, 'e');
+    else if (m.type === 'status') pyState.textContent = m.text;
+    else if (m.type === 'input') pyAsk(m.text);
+    else if (m.type === 'done') {
+      clearTimeout(py.kill); py.running = false; py.waiting = false;
+      var live = pyOut.querySelector('input.live'); if (live) pyOut.removeChild(live);
+      pyState.textContent = m.text === 'ok' ? 'Fertig' : m.text === 'stopped' ? 'Abgebrochen' : 'Mit Fehler beendet';
+      pyButtons();
+    }
+    else if (m.type === 'fatal') { py.starting = false; pyAppend('Python konnte nicht gestartet werden: ' + m.text + '\n', 'e'); pyState.textContent = 'Fehler beim Laden'; }
+  };
+  w.onerror = function (ev) { if (w !== py.worker) return; py.starting = false; pyAppend('Fehler im Worker: ' + (ev.message || 'unbekannt') + '\n', 'e'); pyState.textContent = 'Fehler beim Laden'; };
+  w.postMessage({ type: 'init', base: PYODIDE, prelude: $('#py-prelude').textContent, sab: py.sab });
+}
+function pyStart() { if (!py.worker && !py.starting) { py.starting = true; envReady(pyStartWorker); } }
+function pyRun() {
+  if (!py.ready || py.running) return;
+  pyOut.textContent = '';
+  py.running = true; pyState.textContent = 'Läuft …'; pyButtons();
+  var lines = [];
+  if (!py.iso) { lines = $('#py-stdin').value.split('\n'); if (lines.length && lines[lines.length - 1] === '') lines.pop(); }
+  py.worker.postMessage({ type: 'run', code: pyEd.get(), stdin: lines, live: py.iso });
+}
+function pyRestart(why) {
+  if (py.worker) py.worker.terminate();
+  py.worker = null; clearTimeout(py.kill);
+  var live = pyOut.querySelector('input.live'); if (live) pyOut.removeChild(live);
+  pyAppend('\n' + why + '\n', 'm');
+  pyStartWorker();
+}
+function pyStop() {
+  if (!py.running) return;
+  if (py.iso && py.intr) {
+    py.intr[0] = 2;
+    if (py.waiting) pyAnswer(null);
+    py.kill = setTimeout(function () { if (py.running) pyRestart('Abgebrochen, Python wird neu gestartet …'); }, 2500);
+  } else pyRestart('Abgebrochen, Python wird neu gestartet …');
+}
+pyRunBtn.addEventListener('click', pyRun);
+pyStopBtn.addEventListener('click', pyStop);
+$('#py-clear').addEventListener('click', function () { pyOut.textContent = ''; });
+pyOut.addEventListener('click', function () { var i = pyOut.querySelector('input.live'); if (i && !window.getSelection().toString()) i.focus(); });
+var pyEx = $('#py-examples');
+pyEx.innerHTML = '<option value="">Beispiel wählen …</option>' + PYEX.map(function (e, i) { return '<option value="' + i + '">' + esc(e[0]) + '</option>'; }).join('');
+pyEx.addEventListener('change', function () { if (pyEx.value !== '') { pyEd.set(PYEX[+pyEx.value][1]); pyEx.value = ''; pyEd.ta.focus(); } });
+if (!py.iso) $('#py-stdin-card').hidden = false;
+
+/* ---------- SQL ---------- */
+var DEMO = String.raw`CREATE TABLE abteilung (
+  id INTEGER PRIMARY KEY,
+  name TEXT NOT NULL,
+  ort TEXT NOT NULL
+);
+CREATE TABLE mitarbeiter (
+  id INTEGER PRIMARY KEY,
+  vorname TEXT NOT NULL,
+  nachname TEXT NOT NULL,
+  abteilung_id INTEGER NOT NULL REFERENCES abteilung(id),
+  lohn INTEGER NOT NULL,
+  eintritt TEXT NOT NULL,
+  vorgesetzter_id INTEGER REFERENCES mitarbeiter(id)
+);
+CREATE TABLE projekt (
+  id INTEGER PRIMARY KEY,
+  name TEXT NOT NULL,
+  budget INTEGER NOT NULL,
+  abteilung_id INTEGER REFERENCES abteilung(id)
+);
+CREATE TABLE mitarbeit (
+  mitarbeiter_id INTEGER REFERENCES mitarbeiter(id),
+  projekt_id INTEGER REFERENCES projekt(id),
+  stunden INTEGER NOT NULL,
+  PRIMARY KEY (mitarbeiter_id, projekt_id)
+);
+INSERT INTO abteilung VALUES (1,'Entwicklung','Bern'),(2,'Vertrieb','Zürich'),(3,'Personal','Bern'),(4,'Support','Basel');
+INSERT INTO mitarbeiter VALUES
+(1,'Anna','Keller',3,14500,'2012-03-01',NULL),
+(2,'Marco','Baumann',1,11800,'2015-08-15',1),
+(3,'Sara','Meier',1,9800,'2018-02-01',2),
+(4,'Luca','Frei',1,9200,'2020-09-01',2),
+(5,'Nina','Steiner',2,10400,'2016-05-01',1),
+(6,'Jonas','Wyss',2,8600,'2019-11-01',5),
+(7,'Lea','Gerber',2,8900,'2021-01-15',5),
+(8,'Tim','Brunner',4,7400,'2022-04-01',9),
+(9,'Eva','Hofer',4,9700,'2014-10-01',1),
+(10,'David','Roth',1,10100,'2017-06-01',2),
+(11,'Mia','Schmid',3,7900,'2023-02-01',1),
+(12,'Noah','Weber',4,7100,'2024-08-01',9);
+INSERT INTO projekt VALUES (1,'Neue Webseite',120000,1),(2,'Kundenportal',250000,1),(3,'Messe 2027',60000,2),(4,'Helpdesk Umstellung',80000,4),(5,'Lohnsystem',45000,3);
+INSERT INTO mitarbeit VALUES (2,1,120),(3,1,200),(4,1,150),(3,2,80),(10,2,300),(2,2,60),(5,3,90),(6,3,140),(7,3,110),(8,4,170),(9,4,60),(12,4,200),(11,5,100),(1,5,30);`;
+var SQLEX = [
+  ['Alle Mitarbeitenden', 'SELECT * FROM mitarbeiter;'],
+  ['Filtern und sortieren', "SELECT vorname, nachname, lohn\nFROM mitarbeiter\nWHERE lohn > 9000\nORDER BY lohn DESC;"],
+  ['JOIN mit Abteilung', "SELECT m.vorname, m.nachname, a.name AS abteilung, a.ort\nFROM mitarbeiter m\nJOIN abteilung a ON a.id = m.abteilung_id\nORDER BY a.name, m.nachname;"],
+  ['Gruppieren', "SELECT a.name AS abteilung,\n       COUNT(*) AS anzahl,\n       ROUND(AVG(m.lohn), 0) AS durchschnittslohn\nFROM mitarbeiter m\nJOIN abteilung a ON a.id = m.abteilung_id\nGROUP BY a.name\nHAVING COUNT(*) >= 3\nORDER BY durchschnittslohn DESC;"],
+  ['Unterabfrage', "SELECT vorname, nachname, lohn\nFROM mitarbeiter\nWHERE lohn > (SELECT AVG(lohn) FROM mitarbeiter)\nORDER BY lohn;"],
+  ['Mit Vorgesetzten', "SELECT m.vorname || ' ' || m.nachname AS mitarbeiter,\n       v.vorname || ' ' || v.nachname AS vorgesetzt\nFROM mitarbeiter m\nLEFT JOIN mitarbeiter v ON v.id = m.vorgesetzter_id\nORDER BY m.id;"],
+  ['Stunden pro Projekt', "SELECT p.name AS projekt, SUM(mi.stunden) AS stunden, p.budget\nFROM projekt p\nJOIN mitarbeit mi ON mi.projekt_id = p.id\nGROUP BY p.id\nORDER BY stunden DESC;"],
+  ['Tabelle erstellen', "CREATE TABLE buch (\n  id INTEGER PRIMARY KEY,\n  titel TEXT NOT NULL,\n  jahr INTEGER\n);\nINSERT INTO buch (titel, jahr) VALUES ('Die Physiker', 1962), ('Der Besuch der alten Dame', 1956);\nSELECT * FROM buch;"]
+];
+var sq = { SQL: null, db: null, loading: false, open: {} };
+var sqState = $('#sq-state'), sqRunBtn = $('#sq-run'), sqOut = $('#sq-out');
+var sqEd = makeEditor($('#sq-editor'), {
+  label: 'SQL Befehle', hl: hlSql, indent: '  ', tab: 2, height: 170,
+  value: store.get('sql') || SQLEX[0][1], onRun: function () { sqlRun(); }, onSave: function (v) { store.set('sql', v); }
+});
+function sqlStart() {
+  if (sq.SQL || sq.loading) return;
+  sq.loading = true;
+  loadScript(SQLJS + 'sql-wasm.js')
+    .then(function () { return window.initSqlJs({ locateFile: function (f) { return SQLJS + f; } }); })
+    .then(function (SQL) { sq.SQL = SQL; newDb(true); sqRunBtn.disabled = false; sqState.textContent = 'Bereit (SQLite)'; })
+    .catch(function (e) { sq.loading = false; sqState.textContent = 'Fehler beim Laden'; sqOut.innerHTML = '<div class="verdict err">' + esc(e.message || e) + '</div>'; });
+}
+function newDb(demo, bytes) {
+  if (sq.db) sq.db.close();
+  sq.db = bytes ? new sq.SQL.Database(bytes) : new sq.SQL.Database();
+  sq.db.run('PRAGMA foreign_keys = ON;');
+  if (demo) sq.db.run(DEMO);
+  sq.open = {};
+  schema();
+}
+function schema() {
+  var r = sq.db.exec("SELECT name, type FROM sqlite_master WHERE type IN ('table','view') AND name NOT LIKE 'sqlite_%' ORDER BY name");
+  var rows = r.length ? r[0].values : [];
+  if (!rows.length) { $('#sq-schema').innerHTML = '<p class="hint" style="margin:0">Die Datenbank ist leer. Erstelle eine Tabelle mit CREATE TABLE.</p>'; return; }
+  $('#sq-schema').innerHTML = rows.map(function (t) {
+    var cols = sq.db.exec('PRAGMA table_info("' + t[0].replace(/"/g, '""') + '")');
+    var li = (cols.length ? cols[0].values : []).map(function (c) {
+      return '<li><b>' + esc(c[1]) + '</b> ' + esc(c[2] || '') + (c[5] ? ' (Schlüssel)' : '') + '</li>';
+    }).join('');
+    return '<details data-t="' + esc(t[0]) + '"' + (sq.open[t[0]] ? ' open' : '') + '><summary>' + esc(t[0]) + (t[1] === 'view' ? ' (View)' : '') + '</summary><ul>' + li + '</ul>' +
+      '<button class="link show" type="button" data-t="' + esc(t[0]) + '">Zeilen anzeigen</button></details>';
+  }).join('');
+}
+$('#sq-schema').addEventListener('toggle', function (ev) { var d = ev.target; if (d.dataset && d.dataset.t) sq.open[d.dataset.t] = d.open; }, true);
+$('#sq-schema').addEventListener('click', function (ev) {
+  var b = ev.target.closest('button.show'); if (!b) return;
+  sqEd.set('SELECT * FROM "' + b.dataset.t.replace(/"/g, '""') + '" LIMIT 100;'); sqlRun();
+});
+function cell(v) {
+  if (v === null) return '<td class="nul">NULL</td>';
+  if (v instanceof Uint8Array) return '<td class="nul">[BLOB ' + v.length + ' Bytes]</td>';
+  return '<td' + (typeof v === 'number' ? ' class="num"' : '') + '>' + esc(String(v)) + '</td>';
+}
+function sqlRun() {
+  if (!sq.db) return;
+  var ta = sqEd.ta, text = ta.selectionStart !== ta.selectionEnd ? ta.value.slice(ta.selectionStart, ta.selectionEnd) : ta.value;
+  if (!text.trim()) { sqOut.innerHTML = '<div class="verdict">Gib zuerst einen SQL Befehl ein.</div>'; return; }
+  var t0 = performance.now(), res, html = '';
+  try { res = sq.db.exec(text); }
+  catch (e) { sqOut.innerHTML = '<div class="verdict err">' + esc(e.message || e) + '</div>'; schema(); return; }
+  var ms = Math.round(performance.now() - t0);
+  res.forEach(function (r) {
+    var n = r.values.length, rows = r.values.slice(0, 1000);
+    html += '<div class="rs"><div class="rs-cap">' + n + (n === 1 ? ' Zeile' : ' Zeilen') + (n > 1000 ? ' (die ersten 1000 werden angezeigt)' : '') + '</div><div class="tw"><table><thead><tr>' +
+      r.columns.map(function (c) { return '<th>' + esc(c) + '</th>'; }).join('') + '</tr></thead><tbody>' +
+      rows.map(function (row) { return '<tr>' + row.map(cell).join('') + '</tr>'; }).join('') + '</tbody></table></div></div>';
+  });
+  var mod = sq.db.getRowsModified();
+  var info = res.length ? '' : 'Befehl ausgeführt' + (mod ? ', ' + mod + (mod === 1 ? ' Zeile' : ' Zeilen') + ' geändert' : '') + '. ';
+  sqOut.innerHTML = (info || res.length === 0 ? '<div class="verdict">' + info + ms + ' ms</div>' : '') + html +
+    (res.length ? '<p class="hint" style="margin:0">' + ms + ' ms</p>' : '');
+  schema();
+}
+sqRunBtn.addEventListener('click', sqlRun);
+$('#sq-demo').addEventListener('click', function () { if (sq.SQL) { newDb(true); sqOut.innerHTML = '<div class="verdict">Beispieldatenbank geladen.</div>'; } });
+$('#sq-empty').addEventListener('click', function () { if (sq.SQL) { newDb(false); sqOut.innerHTML = '<div class="verdict">Leere Datenbank erstellt.</div>'; } });
+$('#sq-save').addEventListener('click', function () {
+  if (!sq.db) return;
+  var data = sq.db.export(); sq.db.run('PRAGMA foreign_keys = ON;');
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([data], { type: 'application/vnd.sqlite3' })); a.download = 'sandbox.sqlite';
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+});
+$('#sq-open').addEventListener('click', function () { $('#sq-file').click(); });
+$('#sq-file').addEventListener('change', function (ev) {
+  var f = ev.target.files[0]; ev.target.value = '';
+  if (!f || !sq.SQL) return;
+  f.arrayBuffer().then(function (buf) {
+    try { newDb(false, new Uint8Array(buf)); sqOut.innerHTML = '<div class="verdict">Datenbank «' + esc(f.name) + '» geöffnet.</div>'; }
+    catch (e) { sqOut.innerHTML = '<div class="verdict err">Die Datei ist keine gültige SQLite Datenbank: ' + esc(e.message || e) + '</div>'; newDb(true); }
+  });
+});
+var sqEx = $('#sq-examples');
+sqEx.innerHTML = '<option value="">Beispiel wählen …</option>' + SQLEX.map(function (e, i) { return '<option value="' + i + '">' + esc(e[0]) + '</option>'; }).join('');
+sqEx.addEventListener('change', function () { if (sqEx.value !== '') { sqEd.set(SQLEX[+sqEx.value][1]); sqEx.value = ''; sqEd.ta.focus(); } });
+
+/* ---------- Start: Live Eingabe braucht "cross origin isolated". Auf GitHub Pages stellt coi-sw.js die nötigen Header bereit. ---------- */
+function envReady(cb) {
+  var tried = false; try { tried = sessionStorage.getItem('lk-coi') === '1'; } catch (e) { }
+  if (window.crossOriginIsolated || !window.isSecureContext || !('serviceWorker' in navigator) || tried) { py.iso = !!(window.crossOriginIsolated && typeof SharedArrayBuffer !== 'undefined'); $('#py-stdin-card').hidden = py.iso; return cb(); }
+  var done = false;
+  function go() { if (done) return; done = true; cb(); }
+  function reload() { done = true; try { sessionStorage.setItem('lk-coi', '1'); } catch (e) { } location.reload(); }
+  navigator.serviceWorker.register('coi-sw.js').then(function () {
+    if (navigator.serviceWorker.controller) reload(); else navigator.serviceWorker.addEventListener('controllerchange', reload);
+  }).catch(go);
+  setTimeout(go, 6000);
+}
+showTab(location.hash === '#sql' ? 'sql' : 'python');
+window.addEventListener('hashchange', function () { showTab(location.hash === '#sql' ? 'sql' : 'python'); });
+})();
+</script>
+</body>
+</html>
