@@ -137,6 +137,7 @@ footer{padding-top:6px;padding-bottom:40px;color:var(--muted);font-size:.85rem}
       </div>
       <aside class="card schema">
         <h2>Datenbank</h2>
+        <label class="state" style="display:block;margin-bottom:10px">Beispieldatenbank<br><select id="sq-db"></select></label>
         <div id="sq-schema"></div>
         <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-start;margin-top:12px">
           <button class="link" id="sq-demo" type="button">Beispieldatenbank neu laden</button>
@@ -626,7 +627,159 @@ pyEx.addEventListener('change', function () { if (pyEx.value !== '') { pyEd.set(
 if (!py.iso) $('#py-stdin-card').hidden = false;
 
 /* ---------- SQL ---------- */
-var DEMO = String.raw`CREATE TABLE abteilung (
+var DEMO_FZ = String.raw`CREATE TABLE ort (
+  plz INTEGER PRIMARY KEY,
+  ort TEXT NOT NULL,
+  kanton TEXT NOT NULL
+);
+CREATE TABLE person (
+  id INTEGER PRIMARY KEY,
+  vorname TEXT NOT NULL,
+  nachname TEXT NOT NULL,
+  geburtsdatum TEXT NOT NULL,
+  strasse TEXT NOT NULL,
+  plz INTEGER NOT NULL REFERENCES ort(plz)
+);
+CREATE TABLE marke (
+  id INTEGER PRIMARY KEY,
+  name TEXT NOT NULL UNIQUE,
+  land TEXT NOT NULL
+);
+CREATE TABLE modell (
+  id INTEGER PRIMARY KEY,
+  marke_id INTEGER NOT NULL REFERENCES marke(id),
+  name TEXT NOT NULL,
+  kategorie TEXT NOT NULL,
+  treibstoff TEXT NOT NULL
+);
+CREATE TABLE versicherung (
+  id INTEGER PRIMARY KEY,
+  name TEXT NOT NULL UNIQUE
+);
+CREATE TABLE kontrollschild (
+  kennzeichen TEXT PRIMARY KEY,
+  halter_id INTEGER NOT NULL REFERENCES person(id),
+  versicherung_id INTEGER NOT NULL REFERENCES versicherung(id)
+);
+CREATE TABLE fahrzeug (
+  stammnummer TEXT PRIMARY KEY,
+  kennzeichen TEXT REFERENCES kontrollschild(kennzeichen),
+  modell_id INTEGER NOT NULL REFERENCES modell(id),
+  erstzulassung TEXT NOT NULL,
+  km_stand INTEGER NOT NULL,
+  farbe TEXT,
+  kaufpreis INTEGER
+);
+CREATE TABLE lenker (
+  stammnummer TEXT REFERENCES fahrzeug(stammnummer),
+  person_id INTEGER REFERENCES person(id),
+  seit TEXT NOT NULL,
+  PRIMARY KEY (stammnummer, person_id)
+);
+CREATE TABLE service (
+  id INTEGER PRIMARY KEY,
+  stammnummer TEXT NOT NULL REFERENCES fahrzeug(stammnummer),
+  datum TEXT NOT NULL,
+  art TEXT NOT NULL,
+  kosten INTEGER NOT NULL,
+  km_stand INTEGER NOT NULL
+);
+CREATE TABLE busse (
+  id INTEGER PRIMARY KEY,
+  kennzeichen TEXT NOT NULL REFERENCES kontrollschild(kennzeichen),
+  datum TEXT NOT NULL,
+  ort TEXT NOT NULL,
+  delikt TEXT NOT NULL,
+  betrag INTEGER NOT NULL
+);
+INSERT INTO ort VALUES (3011,'Bern','BE'),(3006,'Bern','BE'),(3600,'Thun','BE'),(2502,'Biel/Bienne','BE'),(8004,'Zürich','ZH'),(8400,'Winterthur','ZH'),(4051,'Basel','BS'),(6003,'Luzern','LU'),(1003,'Lausanne','VD'),(9000,'St. Gallen','SG');
+INSERT INTO person VALUES
+(1,'Anna','Keller','1985-04-12','Kramgasse 12',3011),
+(2,'Marco','Baumann','1972-11-03','Bahnhofstrasse 5',3600),
+(3,'Sara','Meier','1998-07-21','Langstrasse 88',8004),
+(4,'Luca','Frei','2003-01-30','Seevorstadt 40',2502),
+(5,'Nina','Steiner','1990-09-09','Steinenvorstadt 3',4051),
+(6,'Jonas','Wyss','1966-02-14','Pilatusstrasse 17',6003),
+(7,'Lea','Gerber','2001-05-05','Avenue de la Gare 9',1003),
+(8,'Tim','Brunner','1979-12-24','Marktgasse 2',8400),
+(9,'Eva','Hofer','1958-06-18','Thunstrasse 60',3006),
+(10,'David','Roth','1994-03-03','Multergasse 7',9000),
+(11,'Mia','Schmid','2005-08-15','Kramgasse 30',3011),
+(12,'Noah','Weber','1988-10-10','Bahnhofstrasse 11',8004);
+INSERT INTO marke VALUES (1,'VW','Deutschland'),(2,'Toyota','Japan'),(3,'Tesla','USA'),(4,'Skoda','Tschechien'),(5,'BMW','Deutschland'),(6,'Renault','Frankreich'),(7,'Yamaha','Japan'),(8,'Fiat','Italien');
+INSERT INTO modell VALUES
+(1,1,'Golf','Personenwagen','Benzin'),
+(2,1,'ID.3','Personenwagen','Elektro'),
+(3,1,'Transporter','Lieferwagen','Diesel'),
+(4,2,'Corolla','Personenwagen','Hybrid'),
+(5,2,'Yaris','Personenwagen','Hybrid'),
+(6,3,'Model 3','Personenwagen','Elektro'),
+(7,4,'Octavia','Personenwagen','Diesel'),
+(8,5,'X3','Personenwagen','Diesel'),
+(9,5,'R 1250 GS','Motorrad','Benzin'),
+(10,6,'Zoe','Personenwagen','Elektro'),
+(11,7,'MT-07','Motorrad','Benzin'),
+(12,8,'Ducato','Wohnmobil','Diesel');
+INSERT INTO versicherung VALUES (1,'Mobiliar'),(2,'AXA'),(3,'Helvetia'),(4,'Zurich');
+INSERT INTO kontrollschild VALUES
+('BE 123456',1,1),('BE 778899',2,1),('BE 9031',2,3),('ZH 501234',3,4),('BE 334455',4,2),('BS 77120',5,1),
+('LU 12345',6,3),('LU 9876',6,3),('VD 456789',7,4),('ZH 98765',8,2),('BE 2468',9,1),('SG 135790',10,4),('ZH 4711',12,2);
+INSERT INTO fahrzeug VALUES
+('100.234.561','BE 123456',1,'2018-05-14',87500,'grau',32000),
+('742.118.903','BE 123456',6,'2022-03-01',31000,'weiss',48900),
+('315.667.208','BE 778899',7,'2015-09-20',164000,'blau',36500),
+('508.441.376','BE 9031',12,'2020-06-10',42000,'weiss',68000),
+('221.903.554','ZH 501234',4,'2021-11-11',25500,'rot',29900),
+('903.552.117','BE 334455',11,'2023-04-01',6200,'schwarz',8400),
+('618.204.339','BS 77120',2,'2023-08-15',18400,'grün',41000),
+('407.389.660','LU 12345',8,'2017-02-28',121000,'schwarz',61000),
+('834.770.125','LU 9876',9,'2019-05-05',38000,'weiss',22500),
+('129.645.882','VD 456789',10,'2016-01-20',74000,'blau',24000),
+('556.012.794','ZH 98765',3,'2014-10-01',212000,'weiss',39000),
+('287.931.460','BE 2468',5,'2012-04-04',143000,'silber',19500),
+('671.458.203','SG 135790',6,'2024-02-01',9800,'rot',52000),
+('390.826.517',NULL,1,'2009-03-12',231000,'schwarz',NULL);
+INSERT INTO lenker VALUES ('100.234.561',11,'2023-09-01'),('742.118.903',11,'2024-01-15'),('315.667.208',9,'2019-01-01'),('407.389.660',5,'2021-03-01'),('556.012.794',4,'2024-05-01'),('508.441.376',9,'2021-07-01');
+INSERT INTO service VALUES
+(1,'100.234.561','2023-04-12','Service',480,70500),
+(2,'100.234.561','2024-05-02','Service',520,79800),
+(3,'100.234.561','2025-10-15','Reifenwechsel',120,86900),
+(4,'315.667.208','2024-02-20','Bremsen',890,151000),
+(5,'315.667.208','2025-03-11','MFK',95,160200),
+(6,'508.441.376','2025-06-01','Service',1350,39000),
+(7,'221.903.554','2024-11-05','Service',390,21000),
+(8,'407.389.660','2023-08-18','Getriebe',2850,108000),
+(9,'407.389.660','2025-01-09','Service',690,118500),
+(10,'129.645.882','2024-09-30','Batterie',3200,70000),
+(11,'556.012.794','2025-04-22','MFK',95,205000),
+(12,'556.012.794','2025-05-03','Kupplung',1480,205600),
+(13,'287.931.460','2024-06-14','Service',450,138000),
+(14,'834.770.125','2025-04-02','Reifenwechsel',340,35000),
+(15,'390.826.517','2022-11-20','Service',610,229000);
+INSERT INTO busse VALUES
+(1,'BE 334455','2024-07-12','Thun','Innerorts 6 bis 10 km/h zu schnell',250),
+(2,'BE 334455','2025-02-03','Bern','Parkieren ohne Parkscheibe',40),
+(3,'BE 123456','2024-03-19','Bern','Innerorts 1 bis 5 km/h zu schnell',40),
+(4,'ZH 501234','2023-12-01','Zürich','Fahrtrichtungsanzeiger nicht gestellt',100),
+(5,'ZH 501234','2025-08-22','Zürich','Parkzeit überschritten',40),
+(6,'ZH 98765','2024-10-10','Winterthur','Ausserorts 6 bis 10 km/h zu schnell',160),
+(7,'LU 12345','2025-05-30','Luzern','Autobahn 1 bis 5 km/h zu schnell',20),
+(8,'SG 135790','2025-09-14','St. Gallen','Parkieren auf dem Trottoir',120),
+(9,'BE 334455','2025-09-01','Biel/Bienne','Innerorts 1 bis 5 km/h zu schnell',40);`;
+var SQLEX_FZ = [
+  ['Alle Fahrzeuge', 'SELECT * FROM fahrzeug;'],
+  ['Filtern und sortieren', "SELECT stammnummer, kennzeichen, km_stand, erstzulassung\nFROM fahrzeug\nWHERE km_stand > 100000\nORDER BY km_stand DESC;"],
+  ['JOIN Marke und Modell', "SELECT f.kennzeichen, ma.name AS marke, mo.name AS modell, mo.treibstoff\nFROM fahrzeug f\nJOIN modell mo ON mo.id = f.modell_id\nJOIN marke ma ON ma.id = mo.marke_id\nORDER BY marke, modell;"],
+  ['Halter mit Wohnort', "SELECT k.kennzeichen,\n       p.vorname || ' ' || p.nachname AS halter,\n       o.ort, o.kanton\nFROM kontrollschild k\nJOIN person p ON p.id = k.halter_id\nJOIN ort o ON o.plz = p.plz\nORDER BY o.kanton, halter;"],
+  ['Gruppieren nach Treibstoff', "SELECT mo.treibstoff,\n       COUNT(*) AS anzahl,\n       ROUND(AVG(f.km_stand), 0) AS km_durchschnitt\nFROM fahrzeug f\nJOIN modell mo ON mo.id = f.modell_id\nGROUP BY mo.treibstoff\nORDER BY anzahl DESC;"],
+  ['Wechselschild finden (HAVING)', "SELECT kennzeichen, COUNT(*) AS fahrzeuge\nFROM fahrzeug\nWHERE kennzeichen IS NOT NULL\nGROUP BY kennzeichen\nHAVING COUNT(*) > 1;"],
+  ['Personen ohne Schild (LEFT JOIN)', "SELECT p.vorname, p.nachname\nFROM person p\nLEFT JOIN kontrollschild k ON k.halter_id = p.id\nWHERE k.kennzeichen IS NULL;"],
+  ['Bussen pro Halter', "SELECT p.vorname || ' ' || p.nachname AS halter,\n       COUNT(b.id) AS bussen,\n       COALESCE(SUM(b.betrag), 0) AS total_chf\nFROM person p\nJOIN kontrollschild k ON k.halter_id = p.id\nLEFT JOIN busse b ON b.kennzeichen = k.kennzeichen\nGROUP BY p.id\nORDER BY total_chf DESC;"],
+  ['Ohne Service (Unterabfrage)', "SELECT stammnummer, kennzeichen\nFROM fahrzeug\nWHERE stammnummer NOT IN (SELECT stammnummer FROM service);"],
+  ['Zusätzliche Lenker (n:m)', "SELECT f.kennzeichen, f.stammnummer,\n       h.vorname || ' ' || h.nachname AS halter,\n       l.vorname || ' ' || l.nachname AS lenker,\n       x.seit\nFROM lenker x\nJOIN fahrzeug f ON f.stammnummer = x.stammnummer\nJOIN kontrollschild k ON k.kennzeichen = f.kennzeichen\nJOIN person h ON h.id = k.halter_id\nJOIN person l ON l.id = x.person_id\nORDER BY f.kennzeichen;"],
+  ['Tabelle erstellen', "CREATE TABLE buch (\n  id INTEGER PRIMARY KEY,\n  titel TEXT NOT NULL,\n  jahr INTEGER\n);\nINSERT INTO buch (titel, jahr) VALUES ('Die Physiker', 1962), ('Der Besuch der alten Dame', 1956);\nSELECT * FROM buch;"]
+];
+var DEMO_FIRMA = String.raw`CREATE TABLE abteilung (
   id INTEGER PRIMARY KEY,
   name TEXT NOT NULL,
   ort TEXT NOT NULL
@@ -668,7 +821,7 @@ INSERT INTO mitarbeiter VALUES
 (12,'Noah','Weber',4,7100,'2024-08-01',9);
 INSERT INTO projekt VALUES (1,'Neue Webseite',120000,1),(2,'Kundenportal',250000,1),(3,'Messe 2027',60000,2),(4,'Helpdesk Umstellung',80000,4),(5,'Lohnsystem',45000,3);
 INSERT INTO mitarbeit VALUES (2,1,120),(3,1,200),(4,1,150),(3,2,80),(10,2,300),(2,2,60),(5,3,90),(6,3,140),(7,3,110),(8,4,170),(9,4,60),(12,4,200),(11,5,100),(1,5,30);`;
-var SQLEX = [
+var SQLEX_FIRMA = [
   ['Alle Mitarbeitenden', 'SELECT * FROM mitarbeiter;'],
   ['Filtern und sortieren', "SELECT vorname, nachname, lohn\nFROM mitarbeiter\nWHERE lohn > 9000\nORDER BY lohn DESC;"],
   ['JOIN mit Abteilung', "SELECT m.vorname, m.nachname, a.name AS abteilung, a.ort\nFROM mitarbeiter m\nJOIN abteilung a ON a.id = m.abteilung_id\nORDER BY a.name, m.nachname;"],
@@ -678,11 +831,16 @@ var SQLEX = [
   ['Stunden pro Projekt', "SELECT p.name AS projekt, SUM(mi.stunden) AS stunden, p.budget\nFROM projekt p\nJOIN mitarbeit mi ON mi.projekt_id = p.id\nGROUP BY p.id\nORDER BY stunden DESC;"],
   ['Tabelle erstellen', "CREATE TABLE buch (\n  id INTEGER PRIMARY KEY,\n  titel TEXT NOT NULL,\n  jahr INTEGER\n);\nINSERT INTO buch (titel, jahr) VALUES ('Die Physiker', 1962), ('Der Besuch der alten Dame', 1956);\nSELECT * FROM buch;"]
 ];
+var DBS = {
+  fahrzeuge: { name: 'Fahrzeuge und Halter', sql: DEMO_FZ, ex: SQLEX_FZ },
+  firma: { name: 'Firma und Projekte', sql: DEMO_FIRMA, ex: SQLEX_FIRMA }
+};
+var sqDb = Object.prototype.hasOwnProperty.call(DBS, store.get('sqldb')) ? store.get('sqldb') : 'fahrzeuge';
 var sq = { SQL: null, db: null, loading: false, open: {} };
 var sqState = $('#sq-state'), sqRunBtn = $('#sq-run'), sqOut = $('#sq-out');
 var sqEd = makeEditor($('#sq-editor'), {
   label: 'SQL Befehle', hl: hlSql, indent: '  ', tab: 2, height: 170,
-  value: store.get('sql') || SQLEX[0][1], onRun: function () { sqlRun(); }, onSave: function (v) { store.set('sql', v); }
+  value: store.get('sql') || DBS[sqDb].ex[0][1], onRun: function () { sqlRun(); }, onSave: function (v) { store.set('sql', v); }
 });
 function sqlStart() {
   if (sq.SQL || sq.loading) return;
@@ -696,7 +854,7 @@ function newDb(demo, bytes) {
   if (sq.db) sq.db.close();
   sq.db = bytes ? new sq.SQL.Database(bytes) : new sq.SQL.Database();
   sq.db.run('PRAGMA foreign_keys = ON;');
-  if (demo) sq.db.run(DEMO);
+  if (demo) sq.db.run(DBS[sqDb].sql);
   sq.open = {};
   schema();
 }
@@ -762,9 +920,17 @@ $('#sq-file').addEventListener('change', function (ev) {
     catch (e) { sqOut.innerHTML = '<div class="verdict err">Die Datei ist keine gültige SQLite Datenbank: ' + esc(e.message || e) + '</div>'; newDb(true); }
   });
 });
-var sqEx = $('#sq-examples');
-sqEx.innerHTML = '<option value="">Beispiel wählen …</option>' + SQLEX.map(function (e, i) { return '<option value="' + i + '">' + esc(e[0]) + '</option>'; }).join('');
-sqEx.addEventListener('change', function () { if (sqEx.value !== '') { sqEd.set(SQLEX[+sqEx.value][1]); sqEx.value = ''; sqEd.ta.focus(); } });
+var sqEx = $('#sq-examples'), sqDbSel = $('#sq-db');
+function fillEx() { sqEx.innerHTML = '<option value="">Beispiel wählen …</option>' + DBS[sqDb].ex.map(function (e, i) { return '<option value="' + i + '">' + esc(e[0]) + '</option>'; }).join(''); }
+fillEx();
+sqEx.addEventListener('change', function () { if (sqEx.value !== '') { sqEd.set(DBS[sqDb].ex[+sqEx.value][1]); sqEx.value = ''; sqEd.ta.focus(); } });
+sqDbSel.innerHTML = Object.keys(DBS).map(function (k) { return '<option value="' + k + '"' + (k === sqDb ? ' selected' : '') + '>' + esc(DBS[k].name) + '</option>'; }).join('');
+sqDbSel.addEventListener('change', function () {
+  sqDb = sqDbSel.value; store.set('sqldb', sqDb); fillEx();
+  if (!sq.SQL) return;
+  newDb(true); sqEd.set(DBS[sqDb].ex[0][1]);
+  sqOut.innerHTML = '<div class="verdict">Beispieldatenbank «' + esc(DBS[sqDb].name) + '» geladen.</div>';
+});
 
 /* ---------- Start: Live Eingabe braucht "cross origin isolated". Auf GitHub Pages stellt coi-sw.js die nötigen Header bereit. ---------- */
 function envReady(cb) {
