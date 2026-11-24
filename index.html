@@ -76,7 +76,8 @@ tbody tr:last-child td{border-bottom:0}
 .schema ul{list-style:none;margin:6px 0 4px;padding:0 0 0 6px;font-size:.85rem;color:var(--muted)}
 .schema li b{color:var(--fg);font-weight:500}
 .schema .show{margin-top:2px}
-footer{padding-top:6px;padding-bottom:40px;color:var(--muted);font-size:.85rem}
+footer{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px 16px;padding-top:6px;padding-bottom:28px;color:var(--muted);font-size:.83rem}
+footer a{color:inherit}
 .schema-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:8px}
 .schema-head h2{margin:0}
 dialog.changelog.erd-dlg{width:calc(100% - 32px);max-width:1600px;max-height:calc(100vh - 32px)}
@@ -84,7 +85,7 @@ dialog.changelog.erd-dlg{width:calc(100% - 32px);max-width:1600px;max-height:cal
 #sq-erd-box{overflow:auto;max-height:calc(100vh - 170px)}
 #sq-erd-box svg{display:block;max-width:none;margin:0 auto;cursor:zoom-in}
 #sq-erd-box.full svg{cursor:zoom-out}
-.version{color:inherit;text-decoration:underline dotted;text-underline-offset:3px}
+.version{color:inherit;font-family:ui-monospace,Menlo,Consolas,monospace;text-decoration:underline dotted;text-underline-offset:3px}
 .version:hover,.version:focus-visible{color:var(--fg)}
 dialog.changelog{border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--fg);padding:0;width:min(560px,calc(100% - 32px));max-height:80vh}
 dialog.changelog::backdrop{background:rgba(0,0,0,.45)}
@@ -169,8 +170,7 @@ dialog.changelog::backdrop{background:rgba(0,0,0,.45)}
 </main>
 
 <footer>
-  Alles läuft in deinem Browser, dein Code und deine Daten verlassen dein Gerät nicht. Beim ersten Start lädt die Seite Python (Pyodide, etwa 12 MB) und SQLite von cdn.jsdelivr.net, danach liegen sie im Browser Cache.
-  <a href="https://github.com/JanickSpielmann/sandbox-lernknoten">Quellcode auf GitHub</a> ·
+  <span>Läuft in deinem Browser · gehostet im Winkel · <a href="https://github.com/JanickSpielmann/sandbox-lernknoten">Quellcode auf GitHub</a></span>
   <!-- Version und Datum kommen aus dem ersten Eintrag in CHANGELOG -->
   <a href="#aenderungen" id="version-link" class="version">Änderungsprotokoll</a>
 </footer>
@@ -1005,6 +1005,7 @@ erd.el.addEventListener('click', function (ev) { if (ev.target === erd.el) erd.e
    Bei jeder Änderung oben einen Eintrag ergänzen (neueste zuerst). Der erste Eintrag bestimmt die Version unten auf der Seite.
    Zählung: Die erste Zahl steigt bei einer neuen Gestaltung, die mittlere bei einer neuen Funktion, sonst zählt die letzte Zahl hoch. */
 var CHANGELOG = [
+  { version: '1.3.1', date: '24.11.2026', text: 'Die Fusszeile ist kürzer: links Hinweis und Quellcode, rechts Version und Datum.' },
   { version: '1.3.0', date: '24.11.2026', text: 'Das ERD öffnet sich jetzt als Fenster über der Seite. Der Knopf «ERD anzeigen» steht rechts bei der Datenbank.' },
   { version: '1.2.2', date: '24.11.2026', text: 'Die Beispieldatenbank «Firma und Projekte» ist entfernt. Es gibt nur noch «Fahrzeuge und Halter», die Auswahl rechts fällt weg.' },
   { version: '1.2.1', date: '24.11.2026', text: 'Unten auf der Seite stehen jetzt Version und Datum. Ein Klick darauf öffnet dieses Änderungsprotokoll.' },
