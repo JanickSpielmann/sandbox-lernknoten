@@ -77,6 +77,21 @@ tbody tr:last-child td{border-bottom:0}
 .schema li b{color:var(--fg);font-weight:500}
 .schema .show{margin-top:2px}
 footer{padding-top:6px;padding-bottom:40px;color:var(--muted);font-size:.85rem}
+.erd>summary{cursor:pointer;font-weight:600}
+.erd[open]>summary{margin-bottom:10px}
+#sq-erd-box{overflow-x:auto}
+#sq-erd-box svg{display:block;max-width:none;margin:0 auto;cursor:zoom-in}
+#sq-erd-box.full svg{cursor:zoom-out}
+.version{color:inherit;text-decoration:underline dotted;text-underline-offset:3px}
+.version:hover,.version:focus-visible{color:var(--fg)}
+dialog.changelog{border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--fg);padding:0;width:min(560px,calc(100% - 32px));max-height:80vh}
+dialog.changelog::backdrop{background:rgba(0,0,0,.45)}
+.cl-head{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--card)}
+.cl-head h2{margin:0}
+.cl-list{padding:4px 16px 12px}
+.cl-item{padding:10px 0;border-bottom:1px solid var(--line)}.cl-item:last-child{border-bottom:0}
+.cl-date{color:var(--muted);margin-left:8px;font-size:.88rem}
+.cl-item p{margin:4px 0 0}
 </style>
 </head>
 <body>
@@ -118,6 +133,11 @@ footer{padding-top:6px;padding-bottom:40px;color:var(--muted);font-size:.85rem}
   </section>
 
   <section id="panel-sql" role="tabpanel" aria-labelledby="tab-sql" hidden>
+    <details class="card erd" id="sq-erd">
+      <summary>ERD der Datenbank</summary>
+      <div id="sq-erd-box"><p class="hint" style="margin:0">Wird geladen …</p></div>
+      <p class="hint" style="margin:8px 0 0">Das Diagramm entsteht aus den Tabellen und Fremdschlüsseln der aktuellen Datenbank und passt sich der Fenstergrösse an. Ein Klick darauf zeigt es in Originalgrösse.</p>
+    </details>
     <div class="sqlgrid">
       <div>
         <div class="card">
@@ -137,7 +157,6 @@ footer{padding-top:6px;padding-bottom:40px;color:var(--muted);font-size:.85rem}
       </div>
       <aside class="card schema">
         <h2>Datenbank</h2>
-        <label class="state" style="display:block;margin-bottom:10px">Beispieldatenbank<br><select id="sq-db"></select></label>
         <div id="sq-schema"></div>
         <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-start;margin-top:12px">
           <button class="link" id="sq-demo" type="button">Beispieldatenbank neu laden</button>
@@ -154,8 +173,18 @@ footer{padding-top:6px;padding-bottom:40px;color:var(--muted);font-size:.85rem}
 
 <footer>
   Alles läuft in deinem Browser, dein Code und deine Daten verlassen dein Gerät nicht. Beim ersten Start lädt die Seite Python (Pyodide, etwa 12 MB) und SQLite von cdn.jsdelivr.net, danach liegen sie im Browser Cache.
-  <a href="https://github.com/JanickSpielmann/sandbox-lernknoten">Quellcode auf GitHub</a>
+  <a href="https://github.com/JanickSpielmann/sandbox-lernknoten">Quellcode auf GitHub</a> ·
+  <!-- Version und Datum kommen aus dem ersten Eintrag in CHANGELOG -->
+  <a href="#aenderungen" id="version-link" class="version">Änderungsprotokoll</a>
 </footer>
+
+<dialog id="changelog" class="changelog" aria-labelledby="cl-title">
+  <div class="cl-head">
+    <h2 id="cl-title">Änderungsprotokoll</h2>
+    <form method="dialog"><button class="link" type="submit">Schliessen</button></form>
+  </div>
+  <div id="cl-list" class="cl-list"></div>
+</dialog>
 
 <script type="text/plain" id="worker-src">
 var P=null,ctrl=null,buf=null,intr=null;
@@ -627,7 +656,7 @@ pyEx.addEventListener('change', function () { if (pyEx.value !== '') { pyEd.set(
 if (!py.iso) $('#py-stdin-card').hidden = false;
 
 /* ---------- SQL ---------- */
-var DEMO_FZ = String.raw`CREATE TABLE ort (
+var DEMO = String.raw`CREATE TABLE ort (
   plz INTEGER PRIMARY KEY,
   ort TEXT NOT NULL,
   kanton TEXT NOT NULL
@@ -766,7 +795,7 @@ INSERT INTO busse VALUES
 (7,'LU 12345','2025-05-30','Luzern','Autobahn 1 bis 5 km/h zu schnell',20),
 (8,'SG 135790','2025-09-14','St. Gallen','Parkieren auf dem Trottoir',120),
 (9,'BE 334455','2025-09-01','Biel/Bienne','Innerorts 1 bis 5 km/h zu schnell',40);`;
-var SQLEX_FZ = [
+var SQLEX = [
   ['Alle Fahrzeuge', 'SELECT * FROM fahrzeug;'],
   ['Filtern und sortieren', "SELECT stammnummer, kennzeichen, km_stand, erstzulassung\nFROM fahrzeug\nWHERE km_stand > 100000\nORDER BY km_stand DESC;"],
   ['JOIN Marke und Modell', "SELECT f.kennzeichen, ma.name AS marke, mo.name AS modell, mo.treibstoff\nFROM fahrzeug f\nJOIN modell mo ON mo.id = f.modell_id\nJOIN marke ma ON ma.id = mo.marke_id\nORDER BY marke, modell;"],
@@ -779,68 +808,11 @@ var SQLEX_FZ = [
   ['Zusätzliche Lenker (n:m)', "SELECT f.kennzeichen, f.stammnummer,\n       h.vorname || ' ' || h.nachname AS halter,\n       l.vorname || ' ' || l.nachname AS lenker,\n       x.seit\nFROM lenker x\nJOIN fahrzeug f ON f.stammnummer = x.stammnummer\nJOIN kontrollschild k ON k.kennzeichen = f.kennzeichen\nJOIN person h ON h.id = k.halter_id\nJOIN person l ON l.id = x.person_id\nORDER BY f.kennzeichen;"],
   ['Tabelle erstellen', "CREATE TABLE buch (\n  id INTEGER PRIMARY KEY,\n  titel TEXT NOT NULL,\n  jahr INTEGER\n);\nINSERT INTO buch (titel, jahr) VALUES ('Die Physiker', 1962), ('Der Besuch der alten Dame', 1956);\nSELECT * FROM buch;"]
 ];
-var DEMO_FIRMA = String.raw`CREATE TABLE abteilung (
-  id INTEGER PRIMARY KEY,
-  name TEXT NOT NULL,
-  ort TEXT NOT NULL
-);
-CREATE TABLE mitarbeiter (
-  id INTEGER PRIMARY KEY,
-  vorname TEXT NOT NULL,
-  nachname TEXT NOT NULL,
-  abteilung_id INTEGER NOT NULL REFERENCES abteilung(id),
-  lohn INTEGER NOT NULL,
-  eintritt TEXT NOT NULL,
-  vorgesetzter_id INTEGER REFERENCES mitarbeiter(id)
-);
-CREATE TABLE projekt (
-  id INTEGER PRIMARY KEY,
-  name TEXT NOT NULL,
-  budget INTEGER NOT NULL,
-  abteilung_id INTEGER REFERENCES abteilung(id)
-);
-CREATE TABLE mitarbeit (
-  mitarbeiter_id INTEGER REFERENCES mitarbeiter(id),
-  projekt_id INTEGER REFERENCES projekt(id),
-  stunden INTEGER NOT NULL,
-  PRIMARY KEY (mitarbeiter_id, projekt_id)
-);
-INSERT INTO abteilung VALUES (1,'Entwicklung','Bern'),(2,'Vertrieb','Zürich'),(3,'Personal','Bern'),(4,'Support','Basel');
-INSERT INTO mitarbeiter VALUES
-(1,'Anna','Keller',3,14500,'2012-03-01',NULL),
-(2,'Marco','Baumann',1,11800,'2015-08-15',1),
-(3,'Sara','Meier',1,9800,'2018-02-01',2),
-(4,'Luca','Frei',1,9200,'2020-09-01',2),
-(5,'Nina','Steiner',2,10400,'2016-05-01',1),
-(6,'Jonas','Wyss',2,8600,'2019-11-01',5),
-(7,'Lea','Gerber',2,8900,'2021-01-15',5),
-(8,'Tim','Brunner',4,7400,'2022-04-01',9),
-(9,'Eva','Hofer',4,9700,'2014-10-01',1),
-(10,'David','Roth',1,10100,'2017-06-01',2),
-(11,'Mia','Schmid',3,7900,'2023-02-01',1),
-(12,'Noah','Weber',4,7100,'2024-08-01',9);
-INSERT INTO projekt VALUES (1,'Neue Webseite',120000,1),(2,'Kundenportal',250000,1),(3,'Messe 2027',60000,2),(4,'Helpdesk Umstellung',80000,4),(5,'Lohnsystem',45000,3);
-INSERT INTO mitarbeit VALUES (2,1,120),(3,1,200),(4,1,150),(3,2,80),(10,2,300),(2,2,60),(5,3,90),(6,3,140),(7,3,110),(8,4,170),(9,4,60),(12,4,200),(11,5,100),(1,5,30);`;
-var SQLEX_FIRMA = [
-  ['Alle Mitarbeitenden', 'SELECT * FROM mitarbeiter;'],
-  ['Filtern und sortieren', "SELECT vorname, nachname, lohn\nFROM mitarbeiter\nWHERE lohn > 9000\nORDER BY lohn DESC;"],
-  ['JOIN mit Abteilung', "SELECT m.vorname, m.nachname, a.name AS abteilung, a.ort\nFROM mitarbeiter m\nJOIN abteilung a ON a.id = m.abteilung_id\nORDER BY a.name, m.nachname;"],
-  ['Gruppieren', "SELECT a.name AS abteilung,\n       COUNT(*) AS anzahl,\n       ROUND(AVG(m.lohn), 0) AS durchschnittslohn\nFROM mitarbeiter m\nJOIN abteilung a ON a.id = m.abteilung_id\nGROUP BY a.name\nHAVING COUNT(*) >= 3\nORDER BY durchschnittslohn DESC;"],
-  ['Unterabfrage', "SELECT vorname, nachname, lohn\nFROM mitarbeiter\nWHERE lohn > (SELECT AVG(lohn) FROM mitarbeiter)\nORDER BY lohn;"],
-  ['Mit Vorgesetzten', "SELECT m.vorname || ' ' || m.nachname AS mitarbeiter,\n       v.vorname || ' ' || v.nachname AS vorgesetzt\nFROM mitarbeiter m\nLEFT JOIN mitarbeiter v ON v.id = m.vorgesetzter_id\nORDER BY m.id;"],
-  ['Stunden pro Projekt', "SELECT p.name AS projekt, SUM(mi.stunden) AS stunden, p.budget\nFROM projekt p\nJOIN mitarbeit mi ON mi.projekt_id = p.id\nGROUP BY p.id\nORDER BY stunden DESC;"],
-  ['Tabelle erstellen', "CREATE TABLE buch (\n  id INTEGER PRIMARY KEY,\n  titel TEXT NOT NULL,\n  jahr INTEGER\n);\nINSERT INTO buch (titel, jahr) VALUES ('Die Physiker', 1962), ('Der Besuch der alten Dame', 1956);\nSELECT * FROM buch;"]
-];
-var DBS = {
-  fahrzeuge: { name: 'Fahrzeuge und Halter', sql: DEMO_FZ, ex: SQLEX_FZ },
-  firma: { name: 'Firma und Projekte', sql: DEMO_FIRMA, ex: SQLEX_FIRMA }
-};
-var sqDb = Object.prototype.hasOwnProperty.call(DBS, store.get('sqldb')) ? store.get('sqldb') : 'fahrzeuge';
 var sq = { SQL: null, db: null, loading: false, open: {} };
 var sqState = $('#sq-state'), sqRunBtn = $('#sq-run'), sqOut = $('#sq-out');
 var sqEd = makeEditor($('#sq-editor'), {
   label: 'SQL Befehle', hl: hlSql, indent: '  ', tab: 2, height: 170,
-  value: store.get('sql') || DBS[sqDb].ex[0][1], onRun: function () { sqlRun(); }, onSave: function (v) { store.set('sql', v); }
+  value: store.get('sql') || SQLEX[0][1], onRun: function () { sqlRun(); }, onSave: function (v) { store.set('sql', v); }
 });
 function sqlStart() {
   if (sq.SQL || sq.loading) return;
@@ -854,11 +826,12 @@ function newDb(demo, bytes) {
   if (sq.db) sq.db.close();
   sq.db = bytes ? new sq.SQL.Database(bytes) : new sq.SQL.Database();
   sq.db.run('PRAGMA foreign_keys = ON;');
-  if (demo) sq.db.run(DBS[sqDb].sql);
+  if (demo) sq.db.run(DEMO);
   sq.open = {};
   schema();
 }
 function schema() {
+  erdDraw();
   var r = sq.db.exec("SELECT name, type FROM sqlite_master WHERE type IN ('table','view') AND name NOT LIKE 'sqlite_%' ORDER BY name");
   var rows = r.length ? r[0].values : [];
   if (!rows.length) { $('#sq-schema').innerHTML = '<p class="hint" style="margin:0">Die Datenbank ist leer. Erstelle eine Tabelle mit CREATE TABLE.</p>'; return; }
@@ -920,17 +893,10 @@ $('#sq-file').addEventListener('change', function (ev) {
     catch (e) { sqOut.innerHTML = '<div class="verdict err">Die Datei ist keine gültige SQLite Datenbank: ' + esc(e.message || e) + '</div>'; newDb(true); }
   });
 });
-var sqEx = $('#sq-examples'), sqDbSel = $('#sq-db');
-function fillEx() { sqEx.innerHTML = '<option value="">Beispiel wählen …</option>' + DBS[sqDb].ex.map(function (e, i) { return '<option value="' + i + '">' + esc(e[0]) + '</option>'; }).join(''); }
+var sqEx = $('#sq-examples');
+function fillEx() { sqEx.innerHTML = '<option value="">Beispiel wählen …</option>' + SQLEX.map(function (e, i) { return '<option value="' + i + '">' + esc(e[0]) + '</option>'; }).join(''); }
 fillEx();
-sqEx.addEventListener('change', function () { if (sqEx.value !== '') { sqEd.set(DBS[sqDb].ex[+sqEx.value][1]); sqEx.value = ''; sqEd.ta.focus(); } });
-sqDbSel.innerHTML = Object.keys(DBS).map(function (k) { return '<option value="' + k + '"' + (k === sqDb ? ' selected' : '') + '>' + esc(DBS[k].name) + '</option>'; }).join('');
-sqDbSel.addEventListener('change', function () {
-  sqDb = sqDbSel.value; store.set('sqldb', sqDb); fillEx();
-  if (!sq.SQL) return;
-  newDb(true); sqEd.set(DBS[sqDb].ex[0][1]);
-  sqOut.innerHTML = '<div class="verdict">Beispieldatenbank «' + esc(DBS[sqDb].name) + '» geladen.</div>';
-});
+sqEx.addEventListener('change', function () { if (sqEx.value !== '') { sqEd.set(SQLEX[+sqEx.value][1]); sqEx.value = ''; sqEd.ta.focus(); } });
 
 /* ---------- Start: Live Eingabe braucht "cross origin isolated". Auf GitHub Pages stellt coi-sw.js die nötigen Header bereit. ---------- */
 function envReady(cb) {
@@ -944,6 +910,118 @@ function envReady(cb) {
   }).catch(go);
   setTimeout(go, 6000);
 }
+/* ---------- ERD: wird aus dem Schema der aktuellen Datenbank erzeugt und mit Mermaid gezeichnet ---------- */
+var MERMAID = 'https://cdn.jsdelivr.net/npm/mermaid@12.3.0/dist/mermaid.min.js';
+var erd = { el: $('#sq-erd'), box: $('#sq-erd-box'), lib: null, n: 0, last: '', w: 0, h: 0, full: false };
+function erdText() {
+  var r = sq.db.exec("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name");
+  var tabs = r.length ? r[0].values.map(function (v) { return v[0]; }) : [];
+  if (!tabs.length) return '';
+  function id(x) { var t = String(x).replace(/[^A-Za-z0-9_]/g, '_'); return /^[A-Za-z_]/.test(t) ? t : '_' + t; }
+  function q(t) { return '"' + t.replace(/"/g, '""') + '"'; }
+  var ent = [], rel = [];
+  tabs.forEach(function (t) {
+    var cols = sq.db.exec('PRAGMA table_info(' + q(t) + ')'); cols = cols.length ? cols[0].values : [];
+    var fks = sq.db.exec('PRAGMA foreign_key_list(' + q(t) + ')'); fks = fks.length ? fks[0].values : [];
+    var fkCol = {}, seen = {};
+    fks.forEach(function (f) { fkCol[f[3]] = true; });
+    ent.push('  ' + id(t) + ' {\n' + cols.map(function (c) {
+      var k = []; if (c[5]) k.push('PK'); if (fkCol[c[1]]) k.push('FK');
+      return '    ' + id(c[2] || 'ANY') + ' ' + id(c[1]) + (k.length ? ' ' + k.join(',') : '');
+    }).join('\n') + '\n  }');
+    fks.forEach(function (f) {
+      if (seen[f[0]]) return; seen[f[0]] = true;
+      var c = cols.filter(function (x) { return x[1] === f[3]; })[0];
+      var muss = c && (c[3] || c[5]);
+      rel.push('  ' + id(f[2]) + ' ' + (muss ? '||' : '|o') + '--o{ ' + id(t) + ' : "' + String(f[3]).replace(/"/g, '') + '"');
+    });
+  });
+  return rel.concat(ent).join('\n');
+}
+function erdLib() {
+  if (!erd.lib) erd.lib = loadScript(MERMAID).then(function () {
+    var cs = getComputedStyle(document.documentElement);
+    function v(n) { return cs.getPropertyValue(n).trim(); }
+    window.mermaid.initialize({
+      startOnLoad: false, securityLevel: 'strict', theme: 'base',
+      er: { useMaxWidth: false },
+      fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif',
+      themeVariables: {
+        darkMode: matchMedia('(prefers-color-scheme: dark)').matches,
+        background: v('--card'), primaryColor: v('--info'), primaryBorderColor: v('--brand'), primaryTextColor: v('--fg'),
+        lineColor: v('--muted'), textColor: v('--fg'), nodeBorder: v('--brand'), edgeLabelBackground: v('--card'), tertiaryColor: v('--card'), tertiaryBorderColor: v('--line'), rowOdd: v('--card'), rowEven: v('--code-bg'), attributeBackgroundColorOdd: v('--card'), attributeBackgroundColorEven: v('--code-bg'),
+        fontSize: '13px'
+      }
+    });
+    return window.mermaid;
+  }).catch(function (e) { erd.lib = null; throw e; });
+  return erd.lib;
+}
+function erdSize(svg) {
+  var m = /viewBox="([^"]+)"/.exec(svg), v = m ? m[1].split(/[\s,]+/).map(Number) : [0, 0, 800, 600];
+  return { w: v[2], h: v[3] };
+}
+function erdMax() { return { w: erd.box.clientWidth || 1000, h: Math.max(320, window.innerHeight - 120) }; }
+function erdFit() {
+  var svg = erd.box.querySelector('svg'); if (!svg || !erd.w) return;
+  var mx = erdMax(), k = erd.full ? 1 : Math.min(1, mx.w / erd.w, mx.h / erd.h);
+  svg.removeAttribute('height'); svg.removeAttribute('width');
+  svg.style.width = Math.round(erd.w * k) + 'px'; svg.style.height = Math.round(erd.h * k) + 'px';
+  erd.box.classList.toggle('full', erd.full);
+}
+function erdDraw() {
+  if (!erd.el.open || !sq.db) return;
+  var txt = erdText();
+  if (txt === erd.last) return;
+  erd.last = txt;
+  if (!txt) { erd.box.innerHTML = '<p class="hint" style="margin:0">Die Datenbank ist leer. Erstelle eine Tabelle mit CREATE TABLE.</p>'; erd.w = 0; return; }
+  erdLib().then(function (m) {
+    return Promise.all([m.render('erd-svg-' + (++erd.n), 'erDiagram\n' + txt), m.render('erd-svg-' + (++erd.n), 'erDiagram\n  direction LR\n' + txt)]);
+  }).then(function (res) {
+    if (txt !== erd.last) return;
+    var mx = erdMax();
+    /* Variante 0 von oben nach unten, Variante 1 von links nach rechts. Die breite nutzt den Bildschirm besser und gewinnt, solange sie nicht deutlich kleiner wird. */
+    var best = res.map(function (r, i) { var z = erdSize(r.svg), k = Math.min(mx.w / z.w, mx.h / z.h); return { svg: r.svg, w: z.w, h: z.h, k: i ? k * 1.25 : k }; })
+      .sort(function (x, y) { return y.k - x.k; })[0];
+    erd.w = best.w; erd.h = best.h;
+    erd.box.innerHTML = best.svg; erdFit();
+  }).catch(function (e) { erd.last = ''; erd.box.innerHTML = '<div class="verdict err">Das ERD konnte nicht gezeichnet werden: ' + esc(e.message || e) + '</div>'; });
+}
+erd.box.addEventListener('click', function (ev) { if (ev.target.closest('svg')) { erd.full = !erd.full; erdFit(); } });
+var erdT = 0;
+window.addEventListener('resize', function () { clearTimeout(erdT); erdT = setTimeout(function () { if (erd.el.open) erdFit(); }, 150); });
+erd.el.addEventListener('toggle', erdDraw);
+
+/* ---------- Version und Änderungsprotokoll ----------
+   Bei jeder Änderung oben einen Eintrag ergänzen (neueste zuerst). Der erste Eintrag bestimmt die Version unten auf der Seite.
+   Zählung: Die erste Zahl steigt bei einer neuen Gestaltung, die mittlere bei einer neuen Funktion, sonst zählt die letzte Zahl hoch. */
+var CHANGELOG = [
+  { version: '1.2.2', date: '24.11.2026', text: 'Die Beispieldatenbank «Firma und Projekte» ist entfernt. Es gibt nur noch «Fahrzeuge und Halter», die Auswahl rechts fällt weg.' },
+  { version: '1.2.1', date: '24.11.2026', text: 'Unten auf der Seite stehen jetzt Version und Datum. Ein Klick darauf öffnet dieses Änderungsprotokoll.' },
+  { version: '1.2.0', date: '24.11.2026', text: 'Im SQL Tab zeigt oben ein einklappbares ERD die Tabellen und Beziehungen der aktuellen Datenbank. Es passt sich an, wenn du Tabellen anlegst, änderst oder eine eigene Datenbank öffnest, und passt auf einen Bildschirm. Ein Klick darauf zeigt es in Originalgrösse.' },
+  { version: '1.1.0', date: '24.11.2026', text: 'Neue Beispieldatenbank «Fahrzeuge und Halter» mit Kontrollschildern, Stammnummern, Lenkern, Service und Bussen. Sie ist jetzt Standard, die bisherige «Firma und Projekte» lässt sich rechts auswählen. Jede Datenbank hat eigene Beispiele.' },
+  { version: '1.0.2', date: '18.11.2026', text: 'Der Stopp Knopf bricht laufenden Python Code zuverlässig ab.' },
+  { version: '1.0.1', date: '18.11.2026', text: 'Python startet wieder mit der aktuellen Pyodide Version.' },
+  { version: '1.0.0', date: '18.11.2026', text: 'Erste Version: Python Editor mit Live Eingabe und SQL Editor mit SQLite, alles im Browser.' }
+];
+(function () {
+  var link = $('#version-link'), dlg = $('#changelog'), back = '';
+  if (!CHANGELOG.length) return;
+  link.textContent = 'Version ' + CHANGELOG[0].version + ' · ' + CHANGELOG[0].date;
+  $('#cl-list').innerHTML = CHANGELOG.map(function (c) {
+    return '<div class="cl-item"><strong>Version ' + esc(c.version) + '</strong><span class="cl-date">' + esc(c.date) + '</span><p>' + esc(c.text) + '</p></div>';
+  }).join('');
+  function open() {
+    if (dlg.open) return;
+    if (location.hash !== '#aenderungen') { back = location.hash; history.replaceState(null, '', '#aenderungen'); }
+    dlg.showModal();
+  }
+  link.addEventListener('click', function (ev) { ev.preventDefault(); open(); });
+  dlg.addEventListener('close', function () { if (location.hash === '#aenderungen') history.replaceState(null, '', location.pathname + location.search + back); });
+  dlg.addEventListener('click', function (ev) { if (ev.target === dlg) dlg.close(); });
+  if (location.hash === '#aenderungen') open();
+})();
+
 showTab(location.hash === '#sql' ? 'sql' : 'python');
 window.addEventListener('hashchange', function () { showTab(location.hash === '#sql' ? 'sql' : 'python'); });
 })();
