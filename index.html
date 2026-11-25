@@ -62,7 +62,7 @@ button:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visi
 textarea.small{width:100%;min-height:70px;font:14px/1.5 ui-monospace,Menlo,Consolas,monospace;color:var(--fg);background:var(--card);border:1px solid #8f959e;border-radius:6px;padding:8px 10px;resize:vertical}
 .verdict{border-radius:6px;padding:10px 14px;margin:0 0 12px;border:1px solid var(--line);background:var(--info)}
 .verdict.err{background:var(--bad-bg);border-color:var(--bad);color:var(--bad);font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.9rem;white-space:pre-wrap}
-.rs{margin-bottom:14px}.rs-cap{font-size:.82rem;color:var(--muted);margin-bottom:4px}
+.rs{margin-bottom:14px}.rs-cap{display:flex;justify-content:space-between;gap:12px;font-size:.82rem;color:var(--muted);margin-bottom:4px}
 .tw{overflow:auto;max-height:420px;border:1px solid var(--line);border-radius:6px}
 table{border-collapse:collapse;width:100%;font-size:.9rem}
 th,td{padding:5px 10px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
@@ -117,11 +117,14 @@ dialog.changelog::backdrop{background:rgba(0,0,0,.45)}
         <button class="btn" id="py-run" type="button" disabled>Ausführen</button>
         <button class="btn sec" id="py-stop" type="button" disabled>Stopp</button>
         <label class="state">Beispiel <select id="py-examples"></select></label>
+        <button class="btn sec" id="py-save" type="button">Speichern</button>
+        <button class="btn sec" id="py-open" type="button">Öffnen</button>
+        <input type="file" id="py-file" accept=".py,.txt,text/x-python,text/plain" hidden>
         <span class="grow"></span>
         <span class="state" id="py-state" role="status">Python wird geladen …</span>
       </div>
       <div id="py-editor"></div>
-      <p class="hint">Strg oder Cmd + Enter führt aus. Mit Esc und danach Tab verlässt du den Editor per Tastatur.</p>
+      <p class="hint">Strg oder Cmd + Enter führt aus. Mit Esc und danach Tab verlässt du den Editor per Tastatur. «Speichern» lädt den Code als .py Datei herunter, «Öffnen» holt eine .py Datei zurück in den Editor.</p>
     </div>
     <div class="card" id="py-stdin-card" hidden>
       <label for="py-stdin"><b>Eingaben für input()</b> (eine pro Zeile)</label>
@@ -160,10 +163,11 @@ dialog.changelog::backdrop{background:rgba(0,0,0,.45)}
           <button class="link" id="sq-demo" type="button">Beispieldatenbank neu laden</button>
           <button class="link" id="sq-empty" type="button">Leere Datenbank</button>
           <button class="link" id="sq-save" type="button">Datenbank speichern (.sqlite)</button>
-          <button class="link" id="sq-open" type="button">Datenbank öffnen</button>
-          <input type="file" id="sq-file" accept=".sqlite,.sqlite3,.db" hidden>
+          <button class="link" id="sq-dump" type="button">Als SQL exportieren (.sql)</button>
+          <button class="link" id="sq-open" type="button">Datenbank öffnen (.sqlite oder .sql)</button>
+          <input type="file" id="sq-file" accept=".sqlite,.sqlite3,.db,.sql,.txt" hidden>
         </div>
-        <p class="hint">Die Datenbank liegt nur im Arbeitsspeicher. Beim Neuladen der Seite ist sie weg, ausser du speicherst sie.</p>
+        <p class="hint">Die Datenbank liegt nur im Arbeitsspeicher. Beim Neuladen der Seite ist sie weg, ausser du speicherst sie. Die .sql Datei enthält alle Tabellen und Daten als lesbare Befehle.</p>
       </aside>
     </div>
   </section>
@@ -352,6 +356,15 @@ var store = {
   get: function (k) { try { return localStorage.getItem('lk-sandbox-' + k); } catch (e) { return null; } },
   set: function (k, v) { try { localStorage.setItem('lk-sandbox-' + k, v); } catch (e) { } }
 };
+function download(name, data, type) {
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([data], { type: type })); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+}
+function stamp() {
+  var d = new Date(); function z(n) { return (n < 10 ? '0' : '') + n; }
+  return d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate()) + '_' + z(d.getHours()) + z(d.getMinutes());
+}
 function loadScript(src) {
   return new Promise(function (ok, fail) {
     var s = document.createElement('script');
@@ -662,6 +675,22 @@ var pyEx = $('#py-examples');
 pyEx.innerHTML = '<option value="">Beispiel wählen …</option>' + PYEX.map(function (e, i) { return '<option value="' + i + '">' + esc(e[0]) + '</option>'; }).join('');
 pyEx.addEventListener('change', function () { if (pyEx.value !== '') { pyEd.set(PYEX[+pyEx.value][1]); pyEx.value = ''; pyEd.ta.focus(); } });
 if (!py.iso) $('#py-stdin-card').hidden = false;
+$('#py-save').addEventListener('click', function () {
+  var code = pyEd.get();
+  download('sandbox_' + stamp() + '.py', code.endsWith('\n') || !code ? code : code + '\n', 'text/x-python;charset=utf-8');
+});
+$('#py-open').addEventListener('click', function () { $('#py-file').click(); });
+$('#py-file').addEventListener('change', function (ev) {
+  var f = ev.target.files[0]; ev.target.value = '';
+  if (!f) return;
+  if (f.size > 2000000) { pyState.textContent = 'Datei zu gross (mehr als 2 MB)'; return; }
+  f.text().then(function (t) {
+    if (t.indexOf('\u0000') >= 0) { pyState.textContent = 'Keine Textdatei: ' + f.name; return; }
+    pyEd.set(t.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n'));
+    pyState.textContent = '«' + f.name + '» geöffnet';
+    pyEd.ta.focus();
+  });
+});
 
 /* ---------- SQL ---------- */
 var DEMO = String.raw`CREATE TABLE ort (
@@ -831,9 +860,9 @@ function sqlStart() {
     .then(function (SQL) { sq.SQL = SQL; newDb(true); sqRunBtn.disabled = false; sqState.textContent = 'Bereit (SQLite)'; })
     .catch(function (e) { sq.loading = false; sqState.textContent = 'Fehler beim Laden'; sqOut.innerHTML = '<div class="verdict err">' + esc(e.message || e) + '</div>'; });
 }
-function newDb(demo, bytes) {
+function newDb(demo, bytes, ready) {
   if (sq.db) sq.db.close();
-  sq.db = bytes ? new sq.SQL.Database(bytes) : new sq.SQL.Database();
+  sq.db = ready || (bytes ? new sq.SQL.Database(bytes) : new sq.SQL.Database());
   sq.db.run('PRAGMA foreign_keys = ON;');
   if (demo) sq.db.run(DEMO);
   $('#sq-ex-label').hidden = !demo;
@@ -872,9 +901,11 @@ function sqlRun() {
   try { res = sq.db.exec(text); }
   catch (e) { sqOut.innerHTML = '<div class="verdict err">' + esc(e.message || e) + '</div>'; schema(); return; }
   var ms = Math.round(performance.now() - t0);
-  res.forEach(function (r) {
+  sq.res = res;
+  res.forEach(function (r, i) {
     var n = r.values.length, rows = r.values.slice(0, 1000);
-    html += '<div class="rs"><div class="rs-cap">' + n + (n === 1 ? ' Zeile' : ' Zeilen') + (n > 1000 ? ' (die ersten 1000 werden angezeigt)' : '') + '</div><div class="tw"><table><thead><tr>' +
+    html += '<div class="rs"><div class="rs-cap"><span>' + n + (n === 1 ? ' Zeile' : ' Zeilen') + (n > 1000 ? ' (die ersten 1000 werden angezeigt)' : '') + '</span>' +
+      '<button class="link csv" type="button" data-i="' + i + '">Als CSV exportieren</button></div><div class="tw"><table><thead><tr>' +
       r.columns.map(function (c) { return '<th>' + esc(c) + '</th>'; }).join('') + '</tr></thead><tbody>' +
       rows.map(function (row) { return '<tr>' + row.map(cell).join('') + '</tr>'; }).join('') + '</tbody></table></div></div>';
   });
@@ -890,17 +921,68 @@ $('#sq-empty').addEventListener('click', function () { if (sq.SQL) { newDb(false
 $('#sq-save').addEventListener('click', function () {
   if (!sq.db) return;
   var data = sq.db.export(); sq.db.run('PRAGMA foreign_keys = ON;');
-  var a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([data], { type: 'application/vnd.sqlite3' })); a.download = 'sandbox.sqlite';
-  document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+  download('sandbox_' + stamp() + '.sqlite', data, 'application/vnd.sqlite3');
+});
+/* SQL Dump: Tabellen in der Reihenfolge ihrer Erstellung, Werte über quote() von SQLite, damit Zahlen, Texte und BLOBs exakt zurückkommen. */
+function sqlDump() {
+  function q(t) { return '"' + String(t).replace(/"/g, '""') + '"'; }
+  function all(sql) { var r = sq.db.exec(sql); return r.length ? r[0].values : []; }
+  var objs = all("SELECT type, name, sql FROM sqlite_master WHERE sql IS NOT NULL AND name NOT LIKE 'sqlite_%' ORDER BY rowid");
+  var out = ['-- Export aus sandbox.lernknoten.ch, ' + new Date().toLocaleString('de-CH'), 'PRAGMA foreign_keys = OFF;', 'BEGIN TRANSACTION;'];
+  objs.filter(function (o) { return o[0] === 'table'; }).forEach(function (o) {
+    out.push('', o[2] + ';');
+    var cols = all('PRAGMA table_info(' + q(o[1]) + ')').map(function (c) { return c[1]; });
+    if (!cols.length) return;
+    var expr = cols.map(function (c) { return 'quote(' + q(c) + ')'; }).join(" || ',' || ");
+    all('SELECT ' + expr + ' FROM ' + q(o[1])).forEach(function (r) {
+      out.push('INSERT INTO ' + q(o[1]) + ' VALUES (' + r[0] + ');');
+    });
+  });
+  objs.filter(function (o) { return o[0] !== 'table'; }).forEach(function (o) { out.push('', o[2] + ';'); });
+  out.push('', 'COMMIT;', 'PRAGMA foreign_keys = ON;', '');
+  return out.join('\n');
+}
+$('#sq-dump').addEventListener('click', function () {
+  if (!sq.db) return;
+  try { download('sandbox_' + stamp() + '.sql', sqlDump(), 'application/sql;charset=utf-8'); }
+  catch (e) { sqOut.innerHTML = '<div class="verdict err">Export fehlgeschlagen: ' + esc(e.message || e) + '</div>'; }
+});
+/* CSV mit Semikolon und BOM, damit Excel in der Schweiz die Spalten und Umlaute richtig erkennt. */
+function csv(r) {
+  function f(v) {
+    if (v === null) return '';
+    if (v instanceof Uint8Array) v = Array.prototype.map.call(v, function (b) { return (b < 16 ? '0' : '') + b.toString(16); }).join('');
+    v = String(v);
+    return /[";\r\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+  }
+  return '\uFEFF' + [r.columns].concat(r.values).map(function (row) { return row.map(f).join(';'); }).join('\r\n') + '\r\n';
+}
+sqOut.addEventListener('click', function (ev) {
+  var b = ev.target.closest('button.csv'); if (!b || !sq.res) return;
+  var r = sq.res[+b.dataset.i]; if (!r) return;
+  download('ergebnis_' + stamp() + (sq.res.length > 1 ? '_' + (+b.dataset.i + 1) : '') + '.csv', csv(r), 'text/csv;charset=utf-8');
 });
 $('#sq-open').addEventListener('click', function () { $('#sq-file').click(); });
 $('#sq-file').addEventListener('change', function (ev) {
   var f = ev.target.files[0]; ev.target.value = '';
   if (!f || !sq.SQL) return;
   f.arrayBuffer().then(function (buf) {
-    try { newDb(false, new Uint8Array(buf)); exReset(); sqOut.innerHTML = '<div class="verdict">Datenbank «' + esc(f.name) + '» geöffnet.</div>'; }
-    catch (e) { sqOut.innerHTML = '<div class="verdict err">Die Datei ist keine gültige SQLite Datenbank: ' + esc(e.message || e) + '</div>'; newDb(true); }
+    var u = new Uint8Array(buf);
+    /* Eine SQLite Datei beginnt mit "SQLite format 3", alles andere wird als SQL Text ausgeführt. */
+    if (new TextDecoder().decode(u.slice(0, 15)) === 'SQLite format 3') {
+      try { newDb(false, u); exReset(); sqOut.innerHTML = '<div class="verdict">Datenbank «' + esc(f.name) + '» geöffnet.</div>'; }
+      catch (e) { sqOut.innerHTML = '<div class="verdict err">Die Datei ist keine gültige SQLite Datenbank: ' + esc(e.message || e) + '</div>'; newDb(true); }
+      return;
+    }
+    var db = new sq.SQL.Database();
+    try { db.exec(new TextDecoder().decode(u).replace(/^\uFEFF/, '')); }
+    catch (e) {
+      db.close();
+      sqOut.innerHTML = '<div class="verdict err">«' + esc(f.name) + '» konnte nicht eingelesen werden, die bisherige Datenbank bleibt offen: ' + esc(e.message || e) + '</div>';
+      return;
+    }
+    newDb(false, null, db); exReset();
+    sqOut.innerHTML = '<div class="verdict">SQL Datei «' + esc(f.name) + '» eingelesen.</div>';
   });
 });
 var sqEx = $('#sq-examples');
@@ -1015,6 +1097,7 @@ erd.el.addEventListener('click', function (ev) { if (ev.target === erd.el) erd.e
    Bei jeder Änderung oben einen Eintrag ergänzen (neueste zuerst). Der erste Eintrag bestimmt die Version unten auf der Seite.
    Zählung: Die erste Zahl steigt bei einer neuen Gestaltung, die mittlere bei einer neuen Funktion, sonst zählt die letzte Zahl hoch. */
 var CHANGELOG = [
+  { version: '1.5.0', date: '25.11.2026', text: 'Speichern und Öffnen für Python: Der Code lässt sich als .py Datei herunterladen und wieder öffnen. Im SQL Tab gibt es neu den Export der ganzen Datenbank als lesbare .sql Datei, «Datenbank öffnen» liest auch solche .sql Dateien ein, und jedes Abfrageergebnis lässt sich als CSV für Excel exportieren.' },
   { version: '1.4.2', date: '25.11.2026', text: 'Die SQL Beispiele sind zurück, aber nur bei der Beispieldatenbank. Öffnest du eine eigene oder leere Datenbank, verschwindet die Auswahl.' },
   { version: '1.4.1', date: '25.11.2026', text: 'Die Beispielauswahl im SQL Tab ist entfernt. Öffnest du eine eigene Datenbank, steht im Editor weiterhin eine passende Startabfrage.' },
   { version: '1.4.0', date: '25.11.2026', text: 'Die SQL Beispiele zeigen nur noch Abfragen, die zur geladenen Datenbank passen. Fehlen Tabellen, führt ein Link daneben zurück zur Beispieldatenbank. Öffnest du eine eigene Datenbank, ersetzt eine passende Startabfrage das Fahrzeugbeispiel im Editor.' },

@@ -2,8 +2,8 @@
 
 Python und SQL direkt im Browser ausprobieren. Öffentlich, ohne Anmeldung, ohne eigenen Server Code.
 
-* **Python:** echtes CPython im Browser mit [Pyodide](https://pyodide.org), Ausführung in einem Web Worker, Live Eingabe für `input()`, Stopp Knopf, numpy und pandas werden bei `import` nachgeladen.
-* **SQL:** echte SQLite Datenbank im Browser mit [sql.js](https://github.com/sql-js/sql.js), Beispieldatenbank, Tabellenübersicht, Datenbank speichern und öffnen.
+* **Python:** echtes CPython im Browser mit [Pyodide](https://pyodide.org), Ausführung in einem Web Worker, Live Eingabe für `input()`, Stopp Knopf, numpy und pandas werden bei `import` nachgeladen, Code als `.py` Datei speichern und wieder öffnen.
+* **SQL:** echte SQLite Datenbank im Browser mit [sql.js](https://github.com/sql-js/sql.js), Beispieldatenbank, Tabellenübersicht, Datenbank als `.sqlite` oder als lesbare `.sql` Datei speichern und wieder öffnen, Abfrageergebnisse als CSV (Semikolon, für Excel) exportieren.
 
 Alles läuft lokal im Browser. Code und Daten verlassen das Gerät nicht.
 
