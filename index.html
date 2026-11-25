@@ -713,12 +713,18 @@ CREATE TABLE marke (
   name TEXT NOT NULL UNIQUE,
   land TEXT NOT NULL
 );
+CREATE TABLE ausweiskategorie (
+  code TEXT PRIMARY KEY,
+  bezeichnung TEXT NOT NULL,
+  mindestalter INTEGER NOT NULL
+);
 CREATE TABLE modell (
   id INTEGER PRIMARY KEY,
   marke_id INTEGER NOT NULL REFERENCES marke(id),
   name TEXT NOT NULL,
   kategorie TEXT NOT NULL,
-  treibstoff TEXT NOT NULL
+  treibstoff TEXT NOT NULL,
+  ausweis TEXT NOT NULL REFERENCES ausweiskategorie(code)
 );
 CREATE TABLE versicherung (
   id INTEGER PRIMARY KEY,
@@ -743,6 +749,12 @@ CREATE TABLE lenker (
   person_id INTEGER REFERENCES person(id),
   seit TEXT NOT NULL,
   PRIMARY KEY (stammnummer, person_id)
+);
+CREATE TABLE fuehrerausweis (
+  person_id INTEGER REFERENCES person(id),
+  kategorie TEXT REFERENCES ausweiskategorie(code),
+  erteilt_am TEXT NOT NULL,
+  PRIMARY KEY (person_id, kategorie)
 );
 CREATE TABLE service (
   id INTEGER PRIMARY KEY,
@@ -775,19 +787,28 @@ INSERT INTO person VALUES
 (11,'Mia','Schmid','2005-08-15','Kramgasse 30',1),
 (12,'Noah','Weber','1988-10-10','Bahnhofstrasse 11',5);
 INSERT INTO marke VALUES (1,'VW','Deutschland'),(2,'Toyota','Japan'),(3,'Tesla','USA'),(4,'Skoda','Tschechien'),(5,'BMW','Deutschland'),(6,'Renault','Frankreich'),(7,'Yamaha','Japan'),(8,'Fiat','Italien');
+INSERT INTO ausweiskategorie VALUES
+('M','Motorfahrräder (Mofa)',14),
+('A1','Motorräder bis 125 cm³ und 11 kW',16),
+('A','Motorräder',18),
+('B','Personenwagen bis 3500 kg',17),
+('BE','Personenwagen mit schwerem Anhänger',17),
+('C1','Lastwagen bis 7500 kg',18),
+('C','Lastwagen',18),
+('D','Busse',21);
 INSERT INTO modell VALUES
-(1,1,'Golf','Personenwagen','Benzin'),
-(2,1,'ID.3','Personenwagen','Elektro'),
-(3,1,'Transporter','Lieferwagen','Diesel'),
-(4,2,'Corolla','Personenwagen','Hybrid'),
-(5,2,'Yaris','Personenwagen','Hybrid'),
-(6,3,'Model 3','Personenwagen','Elektro'),
-(7,4,'Octavia','Personenwagen','Diesel'),
-(8,5,'X3','Personenwagen','Diesel'),
-(9,5,'R 1250 GS','Motorrad','Benzin'),
-(10,6,'Zoe','Personenwagen','Elektro'),
-(11,7,'MT-07','Motorrad','Benzin'),
-(12,8,'Ducato','Wohnmobil','Diesel');
+(1,1,'Golf','Personenwagen','Benzin','B'),
+(2,1,'ID.3','Personenwagen','Elektro','B'),
+(3,1,'Transporter','Lieferwagen','Diesel','B'),
+(4,2,'Corolla','Personenwagen','Hybrid','B'),
+(5,2,'Yaris','Personenwagen','Hybrid','B'),
+(6,3,'Model 3','Personenwagen','Elektro','B'),
+(7,4,'Octavia','Personenwagen','Diesel','B'),
+(8,5,'X3','Personenwagen','Diesel','B'),
+(9,5,'R 1250 GS','Motorrad','Benzin','A'),
+(10,6,'Zoe','Personenwagen','Elektro','B'),
+(11,7,'MT-07','Motorrad','Benzin','A'),
+(12,8,'Ducato','Wohnmobil','Diesel','B');
 INSERT INTO versicherung VALUES (1,'Mobiliar'),(2,'AXA'),(3,'Helvetia'),(4,'Zurich');
 INSERT INTO kontrollschild VALUES
 ('BE 123456',1,1),('BE 778899',2,1),('BE 9031',2,3),('ZH 501234',3,4),('BE 334455',4,2),('BS 77120',5,1),
@@ -808,6 +829,19 @@ INSERT INTO fahrzeug VALUES
 ('671.458.203','SG 135790',6,'2024-02-01',9800,'rot',52000),
 ('390.826.517',NULL,1,'2009-03-12',231000,'schwarz',NULL);
 INSERT INTO lenker VALUES ('100.234.561',11,'2023-09-01'),('742.118.903',11,'2024-01-15'),('315.667.208',9,'2019-01-01'),('407.389.660',5,'2021-03-01'),('556.012.794',4,'2024-05-01'),('508.441.376',9,'2021-07-01');
+INSERT INTO fuehrerausweis VALUES
+(1,'B','2003-06-20'),
+(2,'B','1990-03-15'),(2,'BE','1998-04-02'),
+(3,'B','2016-09-01'),
+(4,'A1','2019-05-12'),(4,'B','2021-03-08'),(4,'A','2022-04-20'),
+(5,'B','2008-11-03'),
+(6,'B','1984-07-01'),
+(7,'B','2019-10-15'),
+(8,'B','1997-08-20'),(8,'C','2005-02-14'),
+(9,'B','1977-05-30'),
+(10,'B','2012-04-10'),
+(11,'M','2019-09-01'),(11,'B','2023-08-20'),
+(12,'B','2006-12-01'),(12,'D','2015-06-15');
 INSERT INTO service VALUES
 (1,'100.234.561','2023-04-12','Service',480,70500),
 (2,'100.234.561','2024-05-02','Service',520,79800),
@@ -845,6 +879,8 @@ var SQLEX = [
   ['Bussen pro Halter', "SELECT p.vorname || ' ' || p.nachname AS halter,\n       COUNT(b.id) AS bussen,\n       COALESCE(SUM(b.betrag), 0) AS total_chf\nFROM person p\nJOIN kontrollschild k ON k.halter_id = p.id\nLEFT JOIN busse b ON b.kennzeichen = k.kennzeichen\nGROUP BY p.id\nORDER BY total_chf DESC;"],
   ['Ohne Service (Unterabfrage)', "SELECT stammnummer, kennzeichen\nFROM fahrzeug\nWHERE stammnummer NOT IN (SELECT stammnummer FROM service);"],
   ['Zusätzliche Lenker (n:m)', "SELECT f.kennzeichen, f.stammnummer,\n       h.vorname || ' ' || h.nachname AS halter,\n       l.vorname || ' ' || l.nachname AS lenker,\n       x.seit\nFROM lenker x\nJOIN fahrzeug f ON f.stammnummer = x.stammnummer\nJOIN kontrollschild k ON k.kennzeichen = f.kennzeichen\nJOIN person h ON h.id = k.halter_id\nJOIN person l ON l.id = x.person_id\nORDER BY f.kennzeichen;"],
+  ['Ausweise pro Person (zusammengesetzter PK)', "SELECT p.vorname || ' ' || p.nachname AS person,\n       GROUP_CONCAT(a.kategorie, ', ') AS kategorien\nFROM person p\nJOIN fuehrerausweis a ON a.person_id = p.id\nGROUP BY p.id\nORDER BY p.nachname;"],
+  ['Halter ohne passenden Ausweis', "SELECT p.vorname || ' ' || p.nachname AS halter,\n       f.kennzeichen, mo.name AS modell,\n       mo.ausweis AS braucht\nFROM fahrzeug f\nJOIN kontrollschild k ON k.kennzeichen = f.kennzeichen\nJOIN person p ON p.id = k.halter_id\nJOIN modell mo ON mo.id = f.modell_id\nWHERE NOT EXISTS (\n  SELECT 1 FROM fuehrerausweis a\n  WHERE a.person_id = p.id AND a.kategorie = mo.ausweis\n);"],
   ['Tabelle erstellen', "CREATE TABLE buch (\n  id INTEGER PRIMARY KEY,\n  titel TEXT NOT NULL,\n  jahr INTEGER\n);\nINSERT INTO buch (titel, jahr) VALUES ('Die Physiker', 1962), ('Der Besuch der alten Dame', 1956);\nSELECT * FROM buch;"]
 ];
 var SQLSTART = SQLEX[0][1];
@@ -1099,6 +1135,7 @@ erd.el.addEventListener('click', function (ev) { if (ev.target === erd.el) erd.e
    Bei jeder Änderung oben einen Eintrag ergänzen (neueste zuerst). Der erste Eintrag bestimmt die Version unten auf der Seite.
    Zählung: Die erste Zahl steigt bei einer neuen Gestaltung, die mittlere bei einer neuen Funktion, sonst zählt die letzte Zahl hoch. */
 var CHANGELOG = [
+  { version: '1.6.0', date: '25.11.2026', text: 'Beispieldatenbank: Neue Tabelle «ausweiskategorie» mit dem Code als Primärschlüssel (\'B\', \'A1\') und «fuehrerausweis» mit einem zusammengesetzten Primärschlüssel aus Person und Kategorie. Jedes Modell sagt in «ausweis», welche Kategorie es braucht. Zwei neue Beispiele zeigen die Ausweise pro Person und Halter ohne passenden Ausweis.' },
   { version: '1.5.1', date: '25.11.2026', text: 'Beispieldatenbank: Die PLZ ist nicht mehr Primärschlüssel von «ort», weil sich in der Schweiz mehrere Ortschaften eine PLZ teilen können. «ort» hat jetzt eine eigene id, die PLZ ist Text, und «person» verweist über ort_id auf den Wohnort.' },
   { version: '1.5.0', date: '25.11.2026', text: 'Speichern und Öffnen für Python: Der Code lässt sich als .py Datei herunterladen und wieder öffnen. Im SQL Tab gibt es neu den Export der ganzen Datenbank als lesbare .sql Datei, «Datenbank öffnen» liest auch solche .sql Dateien ein, und jedes Abfrageergebnis lässt sich als CSV für Excel exportieren.' },
   { version: '1.4.2', date: '25.11.2026', text: 'Die SQL Beispiele sind zurück, aber nur bei der Beispieldatenbank. Öffnest du eine eigene oder leere Datenbank, verschwindet die Auswahl.' },

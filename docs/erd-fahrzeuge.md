@@ -14,6 +14,9 @@ erDiagram
     person ||--o{ lenker : "darf fahren"
     fahrzeug ||--o{ service : "hat"
     kontrollschild ||--o{ busse : "erhält"
+    ausweiskategorie ||--o{ modell : "braucht"
+    person ||--o{ fuehrerausweis : "besitzt"
+    ausweiskategorie ||--o{ fuehrerausweis : "gilt für"
 
     ort {
         INTEGER id PK
@@ -49,6 +52,17 @@ erDiagram
         TEXT name
         TEXT kategorie
         TEXT treibstoff
+        TEXT ausweis FK
+    }
+    ausweiskategorie {
+        TEXT code PK
+        TEXT bezeichnung
+        INTEGER mindestalter
+    }
+    fuehrerausweis {
+        INTEGER person_id PK,FK
+        TEXT kategorie PK,FK
+        TEXT erteilt_am
     }
     fahrzeug {
         TEXT stammnummer PK
@@ -90,10 +104,15 @@ erDiagram
 * `fahrzeug.kennzeichen` darf NULL sein: Das Fahrzeug `390.826.517` ist abgemeldet.
 * Bussen hängen am Kennzeichen, weil ein Radar nur das Schild sieht. Bei einem Wechselschild ist deshalb nicht klar, welches Fahrzeug gefahren ist.
 * `lenker` ist eine n:m Beziehung: Wer ausser dem Halter darf ein Fahrzeug fahren.
+* **Code** ist der Primärschlüssel von `ausweiskategorie` (`B`, `A1`). Die Codes sind vom Bund festgelegt, kurz und lesbar. Ein Fremdschlüssel wie `modell.ausweis = 'A'` versteht man ohne JOIN.
+* `fuehrerausweis` hat einen zusammengesetzten Primärschlüssel aus `person_id` und `kategorie`. Jede Person hat jede Kategorie höchstens einmal, eine eigene `id` braucht es nicht.
+* Vereinfacht: Höhere Kategorien schliessen in Wirklichkeit tiefere ein (wer `C` hat, darf auch `B` fahren). Die Datenbank kennt das nicht, jede Kategorie steht einzeln.
 
 ## Fälle zum Üben
 
 * Wechselschild: `BE 123456` steckt an zwei Fahrzeugen.
 * Schild ohne Fahrzeug: `ZH 4711` (Noah Weber hat sein Schild hinterlegt).
 * Person ohne Schild: Mia Schmid ist nur Lenkerin.
+* Ohne passenden Ausweis: Jonas Wyss ist Halter eines BMW Motorrads, hat aber nur die Kategorie `B`.
+* Mehrere Kategorien: Luca Frei hat `A1`, `B` und `A`, in dieser Reihenfolge erworben.
 * Fahrzeuge ohne Service und Halter ohne Bussen für LEFT JOIN Übungen.
