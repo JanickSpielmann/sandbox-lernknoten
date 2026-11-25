@@ -694,9 +694,11 @@ $('#py-file').addEventListener('change', function (ev) {
 
 /* ---------- SQL ---------- */
 var DEMO = String.raw`CREATE TABLE ort (
-  plz INTEGER PRIMARY KEY,
+  id INTEGER PRIMARY KEY,
+  plz TEXT NOT NULL,
   ort TEXT NOT NULL,
-  kanton TEXT NOT NULL
+  kanton TEXT NOT NULL,
+  UNIQUE (plz, ort)
 );
 CREATE TABLE person (
   id INTEGER PRIMARY KEY,
@@ -704,7 +706,7 @@ CREATE TABLE person (
   nachname TEXT NOT NULL,
   geburtsdatum TEXT NOT NULL,
   strasse TEXT NOT NULL,
-  plz INTEGER NOT NULL REFERENCES ort(plz)
+  ort_id INTEGER NOT NULL REFERENCES ort(id)
 );
 CREATE TABLE marke (
   id INTEGER PRIMARY KEY,
@@ -758,20 +760,20 @@ CREATE TABLE busse (
   delikt TEXT NOT NULL,
   betrag INTEGER NOT NULL
 );
-INSERT INTO ort VALUES (3011,'Bern','BE'),(3006,'Bern','BE'),(3600,'Thun','BE'),(2502,'Biel/Bienne','BE'),(8004,'Zürich','ZH'),(8400,'Winterthur','ZH'),(4051,'Basel','BS'),(6003,'Luzern','LU'),(1003,'Lausanne','VD'),(9000,'St. Gallen','SG');
+INSERT INTO ort VALUES (1,'3011','Bern','BE'),(2,'3006','Bern','BE'),(3,'3600','Thun','BE'),(4,'2502','Biel/Bienne','BE'),(5,'8004','Zürich','ZH'),(6,'8400','Winterthur','ZH'),(7,'4051','Basel','BS'),(8,'6003','Luzern','LU'),(9,'1003','Lausanne','VD'),(10,'9000','St. Gallen','SG');
 INSERT INTO person VALUES
-(1,'Anna','Keller','1985-04-12','Kramgasse 12',3011),
-(2,'Marco','Baumann','1972-11-03','Bahnhofstrasse 5',3600),
-(3,'Sara','Meier','1998-07-21','Langstrasse 88',8004),
-(4,'Luca','Frei','2003-01-30','Seevorstadt 40',2502),
-(5,'Nina','Steiner','1990-09-09','Steinenvorstadt 3',4051),
-(6,'Jonas','Wyss','1966-02-14','Pilatusstrasse 17',6003),
-(7,'Lea','Gerber','2001-05-05','Avenue de la Gare 9',1003),
-(8,'Tim','Brunner','1979-12-24','Marktgasse 2',8400),
-(9,'Eva','Hofer','1958-06-18','Thunstrasse 60',3006),
-(10,'David','Roth','1994-03-03','Multergasse 7',9000),
-(11,'Mia','Schmid','2005-08-15','Kramgasse 30',3011),
-(12,'Noah','Weber','1988-10-10','Bahnhofstrasse 11',8004);
+(1,'Anna','Keller','1985-04-12','Kramgasse 12',1),
+(2,'Marco','Baumann','1972-11-03','Bahnhofstrasse 5',3),
+(3,'Sara','Meier','1998-07-21','Langstrasse 88',5),
+(4,'Luca','Frei','2003-01-30','Seevorstadt 40',4),
+(5,'Nina','Steiner','1990-09-09','Steinenvorstadt 3',7),
+(6,'Jonas','Wyss','1966-02-14','Pilatusstrasse 17',8),
+(7,'Lea','Gerber','2001-05-05','Avenue de la Gare 9',9),
+(8,'Tim','Brunner','1979-12-24','Marktgasse 2',6),
+(9,'Eva','Hofer','1958-06-18','Thunstrasse 60',2),
+(10,'David','Roth','1994-03-03','Multergasse 7',10),
+(11,'Mia','Schmid','2005-08-15','Kramgasse 30',1),
+(12,'Noah','Weber','1988-10-10','Bahnhofstrasse 11',5);
 INSERT INTO marke VALUES (1,'VW','Deutschland'),(2,'Toyota','Japan'),(3,'Tesla','USA'),(4,'Skoda','Tschechien'),(5,'BMW','Deutschland'),(6,'Renault','Frankreich'),(7,'Yamaha','Japan'),(8,'Fiat','Italien');
 INSERT INTO modell VALUES
 (1,1,'Golf','Personenwagen','Benzin'),
@@ -836,7 +838,7 @@ var SQLEX = [
   ['Alle Fahrzeuge', 'SELECT * FROM fahrzeug;'],
   ['Filtern und sortieren', "SELECT stammnummer, kennzeichen, km_stand, erstzulassung\nFROM fahrzeug\nWHERE km_stand > 100000\nORDER BY km_stand DESC;"],
   ['JOIN Marke und Modell', "SELECT f.kennzeichen, ma.name AS marke, mo.name AS modell, mo.treibstoff\nFROM fahrzeug f\nJOIN modell mo ON mo.id = f.modell_id\nJOIN marke ma ON ma.id = mo.marke_id\nORDER BY marke, modell;"],
-  ['Halter mit Wohnort', "SELECT k.kennzeichen,\n       p.vorname || ' ' || p.nachname AS halter,\n       o.ort, o.kanton\nFROM kontrollschild k\nJOIN person p ON p.id = k.halter_id\nJOIN ort o ON o.plz = p.plz\nORDER BY o.kanton, halter;"],
+  ['Halter mit Wohnort', "SELECT k.kennzeichen,\n       p.vorname || ' ' || p.nachname AS halter,\n       o.plz, o.ort, o.kanton\nFROM kontrollschild k\nJOIN person p ON p.id = k.halter_id\nJOIN ort o ON o.id = p.ort_id\nORDER BY o.kanton, halter;"],
   ['Gruppieren nach Treibstoff', "SELECT mo.treibstoff,\n       COUNT(*) AS anzahl,\n       ROUND(AVG(f.km_stand), 0) AS km_durchschnitt\nFROM fahrzeug f\nJOIN modell mo ON mo.id = f.modell_id\nGROUP BY mo.treibstoff\nORDER BY anzahl DESC;"],
   ['Wechselschild finden (HAVING)', "SELECT kennzeichen, COUNT(*) AS fahrzeuge\nFROM fahrzeug\nWHERE kennzeichen IS NOT NULL\nGROUP BY kennzeichen\nHAVING COUNT(*) > 1;"],
   ['Personen ohne Schild (LEFT JOIN)', "SELECT p.vorname, p.nachname\nFROM person p\nLEFT JOIN kontrollschild k ON k.halter_id = p.id\nWHERE k.kennzeichen IS NULL;"],
@@ -1097,6 +1099,7 @@ erd.el.addEventListener('click', function (ev) { if (ev.target === erd.el) erd.e
    Bei jeder Änderung oben einen Eintrag ergänzen (neueste zuerst). Der erste Eintrag bestimmt die Version unten auf der Seite.
    Zählung: Die erste Zahl steigt bei einer neuen Gestaltung, die mittlere bei einer neuen Funktion, sonst zählt die letzte Zahl hoch. */
 var CHANGELOG = [
+  { version: '1.5.1', date: '25.11.2026', text: 'Beispieldatenbank: Die PLZ ist nicht mehr Primärschlüssel von «ort», weil sich in der Schweiz mehrere Ortschaften eine PLZ teilen können. «ort» hat jetzt eine eigene id, die PLZ ist Text, und «person» verweist über ort_id auf den Wohnort.' },
   { version: '1.5.0', date: '25.11.2026', text: 'Speichern und Öffnen für Python: Der Code lässt sich als .py Datei herunterladen und wieder öffnen. Im SQL Tab gibt es neu den Export der ganzen Datenbank als lesbare .sql Datei, «Datenbank öffnen» liest auch solche .sql Dateien ein, und jedes Abfrageergebnis lässt sich als CSV für Excel exportieren.' },
   { version: '1.4.2', date: '25.11.2026', text: 'Die SQL Beispiele sind zurück, aber nur bei der Beispieldatenbank. Öffnest du eine eigene oder leere Datenbank, verschwindet die Auswahl.' },
   { version: '1.4.1', date: '25.11.2026', text: 'Die Beispielauswahl im SQL Tab ist entfernt. Öffnest du eine eigene Datenbank, steht im Editor weiterhin eine passende Startabfrage.' },

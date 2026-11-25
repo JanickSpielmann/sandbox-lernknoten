@@ -16,7 +16,8 @@ erDiagram
     kontrollschild ||--o{ busse : "erhält"
 
     ort {
-        INTEGER plz PK
+        INTEGER id PK
+        TEXT plz
         TEXT ort
         TEXT kanton
     }
@@ -26,7 +27,7 @@ erDiagram
         TEXT nachname
         TEXT geburtsdatum
         TEXT strasse
-        INTEGER plz FK
+        INTEGER ort_id FK
     }
     versicherung {
         INTEGER id PK
@@ -83,6 +84,7 @@ erDiagram
 
 ## Warum diese Schlüssel
 
+* **Ort** hat eine eigene `id` als Primärschlüssel. Die PLZ eignet sich nicht: In der Schweiz können sich mehrere Ortschaften eine PLZ teilen, und eine PLZ kann über eine Kantonsgrenze reichen. Eindeutig ist erst die Kombination aus PLZ und Ortsname (`UNIQUE (plz, ort)`). Die PLZ ist `TEXT`, weil sie eine Kennung ist und keine Zahl zum Rechnen.
 * **Kennzeichen** ist der Primärschlüssel von `kontrollschild`. In der Schweiz gehört das Schild dem Halter, nicht dem Fahrzeug. Es wechselt beim Autokauf mit und kann als Wechselschild für zwei Fahrzeuge gelten (`BE 123456`).
 * **Stammnummer** ist der Primärschlüssel von `fahrzeug`. Sie bleibt ein Fahrzeugleben lang gleich, auch wenn das Schild wechselt.
 * `fahrzeug.kennzeichen` darf NULL sein: Das Fahrzeug `390.826.517` ist abgemeldet.
