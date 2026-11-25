@@ -141,8 +141,6 @@ dialog.changelog::backdrop{background:rgba(0,0,0,.45)}
         <div class="card">
           <div class="toolbar">
             <button class="btn" id="sq-run" type="button" disabled>Ausführen</button>
-            <label class="state">Beispiel <select id="sq-examples"></select></label>
-            <span class="state" id="sq-ex-hint" hidden><span id="sq-ex-n"></span> die <button class="link" id="sq-ex-demo" type="button">Beispieldatenbank</button></span>
             <span class="grow"></span>
             <span class="state" id="sq-state" role="status">SQLite wird geladen …</span>
           </div>
@@ -804,24 +802,12 @@ INSERT INTO busse VALUES
 (7,'LU 12345','2025-05-30','Luzern','Autobahn 1 bis 5 km/h zu schnell',20),
 (8,'SG 135790','2025-09-14','St. Gallen','Parkieren auf dem Trottoir',120),
 (9,'BE 334455','2025-09-01','Biel/Bienne','Innerorts 1 bis 5 km/h zu schnell',40);`;
-var SQLEX = [
-  ['Alle Fahrzeuge', 'SELECT * FROM fahrzeug;', ['fahrzeug']],
-  ['Filtern und sortieren', "SELECT stammnummer, kennzeichen, km_stand, erstzulassung\nFROM fahrzeug\nWHERE km_stand > 100000\nORDER BY km_stand DESC;", ['fahrzeug']],
-  ['JOIN Marke und Modell', "SELECT f.kennzeichen, ma.name AS marke, mo.name AS modell, mo.treibstoff\nFROM fahrzeug f\nJOIN modell mo ON mo.id = f.modell_id\nJOIN marke ma ON ma.id = mo.marke_id\nORDER BY marke, modell;", ['fahrzeug', 'modell', 'marke']],
-  ['Halter mit Wohnort', "SELECT k.kennzeichen,\n       p.vorname || ' ' || p.nachname AS halter,\n       o.ort, o.kanton\nFROM kontrollschild k\nJOIN person p ON p.id = k.halter_id\nJOIN ort o ON o.plz = p.plz\nORDER BY o.kanton, halter;", ['kontrollschild', 'person', 'ort']],
-  ['Gruppieren nach Treibstoff', "SELECT mo.treibstoff,\n       COUNT(*) AS anzahl,\n       ROUND(AVG(f.km_stand), 0) AS km_durchschnitt\nFROM fahrzeug f\nJOIN modell mo ON mo.id = f.modell_id\nGROUP BY mo.treibstoff\nORDER BY anzahl DESC;", ['fahrzeug', 'modell']],
-  ['Wechselschild finden (HAVING)', "SELECT kennzeichen, COUNT(*) AS fahrzeuge\nFROM fahrzeug\nWHERE kennzeichen IS NOT NULL\nGROUP BY kennzeichen\nHAVING COUNT(*) > 1;", ['fahrzeug']],
-  ['Personen ohne Schild (LEFT JOIN)', "SELECT p.vorname, p.nachname\nFROM person p\nLEFT JOIN kontrollschild k ON k.halter_id = p.id\nWHERE k.kennzeichen IS NULL;", ['person', 'kontrollschild']],
-  ['Bussen pro Halter', "SELECT p.vorname || ' ' || p.nachname AS halter,\n       COUNT(b.id) AS bussen,\n       COALESCE(SUM(b.betrag), 0) AS total_chf\nFROM person p\nJOIN kontrollschild k ON k.halter_id = p.id\nLEFT JOIN busse b ON b.kennzeichen = k.kennzeichen\nGROUP BY p.id\nORDER BY total_chf DESC;", ['person', 'kontrollschild', 'busse']],
-  ['Ohne Service (Unterabfrage)', "SELECT stammnummer, kennzeichen\nFROM fahrzeug\nWHERE stammnummer NOT IN (SELECT stammnummer FROM service);", ['fahrzeug', 'service']],
-  ['Zusätzliche Lenker (n:m)', "SELECT f.kennzeichen, f.stammnummer,\n       h.vorname || ' ' || h.nachname AS halter,\n       l.vorname || ' ' || l.nachname AS lenker,\n       x.seit\nFROM lenker x\nJOIN fahrzeug f ON f.stammnummer = x.stammnummer\nJOIN kontrollschild k ON k.kennzeichen = f.kennzeichen\nJOIN person h ON h.id = k.halter_id\nJOIN person l ON l.id = x.person_id\nORDER BY f.kennzeichen;", ['lenker', 'fahrzeug', 'kontrollschild', 'person']],
-  ['Tabelle erstellen', "CREATE TABLE buch (\n  id INTEGER PRIMARY KEY,\n  titel TEXT NOT NULL,\n  jahr INTEGER\n);\nINSERT INTO buch (titel, jahr) VALUES ('Die Physiker', 1962), ('Der Besuch der alten Dame', 1956);\nSELECT * FROM buch;", []]
-];
+var SQLSTART = 'SELECT * FROM fahrzeug;';
 var sq = { SQL: null, db: null, loading: false, open: {} };
 var sqState = $('#sq-state'), sqRunBtn = $('#sq-run'), sqOut = $('#sq-out');
 var sqEd = makeEditor($('#sq-editor'), {
   label: 'SQL Befehle', hl: hlSql, indent: '  ', tab: 2, height: 170,
-  value: store.get('sql') || SQLEX[0][1], onRun: function () { sqlRun(); }, onSave: function (v) { store.set('sql', v); }
+  value: store.get('sql') || SQLSTART, onRun: function () { sqlRun(); }, onSave: function (v) { store.set('sql', v); }
 });
 function sqlStart() {
   if (sq.SQL || sq.loading) return;
@@ -841,7 +827,6 @@ function newDb(demo, bytes) {
 }
 function schema() {
   erdDraw();
-  fillEx();
   var r = sq.db.exec("SELECT name, type FROM sqlite_master WHERE type IN ('table','view') AND name NOT LIKE 'sqlite_%' ORDER BY name");
   var rows = r.length ? r[0].values : [];
   if (!rows.length) { $('#sq-schema').innerHTML = '<p class="hint" style="margin:0">Die Datenbank ist leer. Erstelle eine Tabelle mit CREATE TABLE.</p>'; return; }
@@ -903,35 +888,14 @@ $('#sq-file').addEventListener('change', function (ev) {
     catch (e) { sqOut.innerHTML = '<div class="verdict err">Die Datei ist keine gültige SQLite Datenbank: ' + esc(e.message || e) + '</div>'; newDb(true); }
   });
 });
-var sqEx = $('#sq-examples');
-/* Jedes Beispiel nennt die Tabellen, die es braucht. Angezeigt werden nur Beispiele, deren Tabellen in der aktuellen Datenbank vorkommen. */
-function sqTables() {
-  if (!sq.db) return null;
-  var r = sq.db.exec("SELECT lower(name) FROM sqlite_master WHERE type IN ('table','view')"), o = {};
-  (r.length ? r[0].values : []).forEach(function (v) { o[v[0]] = 1; });
-  return o;
-}
-function exFits(e, t) { return !t || e[2].every(function (n) { return t[n]; }); }
-function fillEx() {
-  if (!sqEx) return;
-  var t = sqTables(), miss = 0;
-  sqEx.innerHTML = '<option value="">Beispiel wählen …</option>' + SQLEX.map(function (e, i) {
-    if (!exFits(e, t)) { miss++; return ''; }
-    return '<option value="' + i + '">' + esc(e[0]) + '</option>';
-  }).join('');
-  $('#sq-ex-n').textContent = miss + (miss === 1 ? ' weiteres Beispiel braucht' : ' weitere Beispiele brauchen');
-  $('#sq-ex-hint').hidden = !miss;
-}
-/* Steht im Editor noch ein unverändertes Beispiel, das nicht zur neuen Datenbank passt, kommt eine passende Startabfrage hinein. */
+/* Steht im Editor noch die Startabfrage und gibt es die Tabelle nicht mehr, kommt eine passende Abfrage hinein. */
 function exReset() {
-  var cur = sqEd.get(), t = sqTables();
-  if (!SQLEX.some(function (e) { return e[1] === cur && !exFits(e, t); })) return;
-  var r = sq.db.exec("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name LIMIT 1");
-  sqEd.set(r.length ? 'SELECT * FROM "' + r[0].values[0][0].replace(/"/g, '""') + '" LIMIT 100;' : SQLEX[SQLEX.length - 1][1]);
+  if (sqEd.get() !== SQLSTART) return;
+  var r = sq.db.exec("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name");
+  var t = r.length ? r[0].values.map(function (v) { return v[0]; }) : [];
+  if (t.some(function (n) { return n.toLowerCase() === 'fahrzeug'; })) return;
+  sqEd.set(t.length ? 'SELECT * FROM "' + t[0].replace(/"/g, '""') + '" LIMIT 100;' : '');
 }
-$('#sq-ex-demo').addEventListener('click', function () { $('#sq-demo').click(); });
-fillEx();
-sqEx.addEventListener('change', function () { if (sqEx.value !== '') { sqEd.set(SQLEX[+sqEx.value][1]); sqEx.value = ''; sqEd.ta.focus(); } });
 
 /* ---------- Start: Live Eingabe braucht "cross origin isolated". Auf GitHub Pages stellt coi-sw.js die nötigen Header bereit. ---------- */
 function envReady(cb) {
@@ -1032,6 +996,7 @@ erd.el.addEventListener('click', function (ev) { if (ev.target === erd.el) erd.e
    Bei jeder Änderung oben einen Eintrag ergänzen (neueste zuerst). Der erste Eintrag bestimmt die Version unten auf der Seite.
    Zählung: Die erste Zahl steigt bei einer neuen Gestaltung, die mittlere bei einer neuen Funktion, sonst zählt die letzte Zahl hoch. */
 var CHANGELOG = [
+  { version: '1.4.1', date: '25.11.2026', text: 'Die Beispielauswahl im SQL Tab ist entfernt. Öffnest du eine eigene Datenbank, steht im Editor weiterhin eine passende Startabfrage.' },
   { version: '1.4.0', date: '25.11.2026', text: 'Die SQL Beispiele zeigen nur noch Abfragen, die zur geladenen Datenbank passen. Fehlen Tabellen, führt ein Link daneben zurück zur Beispieldatenbank. Öffnest du eine eigene Datenbank, ersetzt eine passende Startabfrage das Fahrzeugbeispiel im Editor.' },
   { version: '1.3.1', date: '24.11.2026', text: 'Die Fusszeile ist kürzer: links Hinweis und Quellcode, rechts Version und Datum.' },
   { version: '1.3.0', date: '24.11.2026', text: 'Das ERD öffnet sich jetzt als Fenster über der Seite. Der Knopf «ERD anzeigen» steht rechts bei der Datenbank.' },
