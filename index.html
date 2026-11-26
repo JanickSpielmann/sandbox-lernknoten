@@ -5,18 +5,18 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Sandbox · lernknoten.ch</title>
 <meta name="description" content="Python und SQL direkt im Browser ausprobieren: echtes Python (Pyodide) und eine echte SQLite Datenbank, ohne Installation und ohne Anmeldung.">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231f7a45'/%3E%3Cpath d='M9 11l6 5-6 5M17 21h7' stroke='white' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231d6fd8'/%3E%3Cpath d='M9 11l6 5-6 5M17 21h7' stroke='white' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <style>
 :root{
-  --bg:#f3f8f4;--card:#fff;--fg:#1d2125;--muted:#5d6670;--line:#d5e6da;--brand:#1f7a45;--brand-ink:#fff;
-  --info:#e8f3ec;--good:#357a32;--bad:#ca3120;--bad-bg:#fbe9e7;--code-bg:#f8fbf9;--gelb:#c99700;
-  --t-k:#1f7a45;--t-s:#a1431b;--t-n:#2b6cb0;--t-c:#69727d;--t-f:#7a4fa3;--t-b:#8a5a00;
+  --bg:#f2f8fd;--card:#fff;--fg:#1d2125;--muted:#5d6670;--line:#d3e4f5;--brand:#1d6fd8;--brand-ink:#fff;
+  --info:#e6f1fb;--good:#357a32;--bad:#ca3120;--bad-bg:#fbe9e7;--code-bg:#f7fbfe;--gelb:#c99700;
+  --t-k:#1d6fd8;--t-s:#a1431b;--t-n:#2f7d4a;--t-c:#69727d;--t-f:#7a4fa3;--t-b:#8a5a00;
   color-scheme:light;
 }
 @media (prefers-color-scheme:dark){:root{
-  --bg:#07120b;--card:#0d1c12;--fg:#e6e8eb;--muted:#9aa3ad;--line:#1f3d2a;--brand:#6fcf97;--brand-ink:#0d1117;
-  --info:#0f2618;--good:#6cc46a;--bad:#ff7a6b;--bad-bg:#3a1f1c;--code-bg:#0a170e;--gelb:#f2b705;
-  --t-k:#7fd6a2;--t-s:#f0a58a;--t-n:#8ab4e8;--t-c:#9aa3ad;--t-f:#c3a6e8;--t-b:#e5b567;color-scheme:dark}}
+  --bg:#08101a;--card:#0c1622;--fg:#e6e8eb;--muted:#9aa3ad;--line:#1e3550;--brand:#74b9f5;--brand-ink:#0d1117;
+  --info:#0f2236;--good:#6cc46a;--bad:#ff7a6b;--bad-bg:#3a1f1c;--code-bg:#0a131e;--gelb:#f2b705;
+  --t-k:#8cc8ff;--t-s:#f0a58a;--t-n:#8fd4a0;--t-c:#9aa3ad;--t-f:#c3a6e8;--t-b:#e5b567;color-scheme:dark}}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
 a{color:var(--brand)}
@@ -1135,6 +1135,7 @@ erd.el.addEventListener('click', function (ev) { if (ev.target === erd.el) erd.e
    Bei jeder Änderung oben einen Eintrag ergänzen (neueste zuerst). Der erste Eintrag bestimmt die Version unten auf der Seite.
    Zählung: Die erste Zahl steigt bei einer neuen Gestaltung, die mittlere bei einer neuen Funktion, sonst zählt die letzte Zahl hoch. */
 var CHANGELOG = [
+  { version: '2.0.1', date: '26.11.2026', text: 'Das Farbschema ist jetzt hellblau statt grün, im hellen und im dunklen Modus, auch beim Symbol im Browser Tab. Im Editor sind Schlüsselwörter blau und Zahlen neu grün, damit sie sich von den Schlüsselwörtern abheben.' },
   { version: '2.0.0', date: '26.11.2026', text: 'Neues Farbschema in Grün, im hellen und im dunklen Modus. Auch das Symbol im Browser Tab ist jetzt grün. Im Editor sind Schlüsselwörter grün und Texte rostrot, damit sie sich weiterhin gut unterscheiden.' },
   { version: '1.6.0', date: '25.11.2026', text: 'Beispieldatenbank: Neue Tabelle «ausweiskategorie» mit dem Code als Primärschlüssel (\'B\', \'A1\') und «fuehrerausweis» mit einem zusammengesetzten Primärschlüssel aus Person und Kategorie. Jedes Modell sagt in «ausweis», welche Kategorie es braucht. Zwei neue Beispiele zeigen die Ausweise pro Person und Halter ohne passenden Ausweis.' },
   { version: '1.5.1', date: '25.11.2026', text: 'Beispieldatenbank: Die PLZ ist nicht mehr Primärschlüssel von «ort», weil sich in der Schweiz mehrere Ortschaften eine PLZ teilen können. «ort» hat jetzt eine eigene id, die PLZ ist Text, und «person» verweist über ort_id auf den Wohnort.' },
